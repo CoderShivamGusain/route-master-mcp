@@ -1,0 +1,2523 @@
+{
+ "version": 1,
+ "_comment": "Curated Indian bus hubs. 'providers' holds IDs that were checked on the live site; only add an ID after confirming the link opens the right route and date. 'terminals' are recognised bus stations / established boarding hubs; 'areas' are other well-known boarding areas. Both resolve to the parent city.",
+ "hubs": [
+  {
+   "name": "Delhi",
+   "state": "Delhi",
+   "aliases": [
+    "new delhi",
+    "dilli",
+    "ndls",
+    "del",
+    "delhi ncr"
+   ],
+   "terminals": [
+    "ISBT Kashmiri Gate",
+    "Kashmiri Gate",
+    "Kashmere Gate",
+    "Anand Vihar",
+    "Anand Vihar ISBT",
+    "Sarai Kale Khan ISBT",
+    "Majnu Ka Tilla"
+   ],
+   "areas": [
+    "Connaught Place",
+    "CP",
+    "RK Ashram",
+    "Dhaula Kuan",
+    "Karol Bagh",
+    "Paharganj",
+    "Akshardham"
+   ],
+   "providers": {
+    "redbus": {
+     "id": 733,
+     "slug": "delhi"
+    },
+    "goibibo": "GICC1199"
+   }
+  },
+  {
+   "name": "Gurugram",
+   "state": "Haryana",
+   "aliases": [
+    "gurgaon",
+    "ggn"
+   ],
+   "terminals": [],
+   "areas": [
+    "IFFCO Chowk",
+    "Rajiv Chowk"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Noida",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Sector 62",
+    "Botanical Garden"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Ghaziabad",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Kaushambi"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Faridabad",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Badarpur Border"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Chandigarh",
+   "state": "Chandigarh",
+   "aliases": [
+    "chd",
+    "tricity"
+   ],
+   "terminals": [
+    "ISBT Sector 43",
+    "ISBT Sector 17"
+   ],
+   "areas": [
+    "Zirakpur"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Manali",
+   "state": "Himachal Pradesh",
+   "aliases": [
+    "kullu manali",
+    "manali hp"
+   ],
+   "terminals": [
+    "Manali Bus Stand",
+    "Manali Private Bus Stand",
+    "Private Volvo Bus Parking Manali"
+   ],
+   "areas": [
+    "Mall Road Manali",
+    "Old Manali",
+    "Patlikuhal"
+   ],
+   "providers": {
+    "redbus": {
+     "id": 757,
+     "slug": "manali"
+    },
+    "goibibo": "GICC1543"
+   }
+  },
+  {
+   "name": "Shimla",
+   "state": "Himachal Pradesh",
+   "aliases": [
+    "simla"
+   ],
+   "terminals": [
+    "ISBT Tutikandi",
+    "Old Bus Stand Shimla"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Dharamshala",
+   "state": "Himachal Pradesh",
+   "aliases": [
+    "dharamsala"
+   ],
+   "terminals": [
+    "Dharamshala Bus Stand"
+   ],
+   "areas": [
+    "McLeod Ganj",
+    "Mcleodganj"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Kullu",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Bhuntar"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Mandi",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Dehradun",
+   "state": "Uttarakhand",
+   "aliases": [
+    "dehra dun",
+    "ddn"
+   ],
+   "terminals": [
+    "ISBT Dehradun"
+   ],
+   "areas": [],
+   "providers": {"redbus": {"id": 777, "slug": "dehradun"}}
+  },
+  {
+   "name": "Rishikesh",
+   "state": "Uttarakhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Haridwar",
+   "state": "Uttarakhand",
+   "aliases": [
+    "hardwar"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Nainital",
+   "state": "Uttarakhand",
+   "aliases": [
+    "naini tal"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Haldwani",
+   "state": "Uttarakhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Kathgodam"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Jaipur",
+   "state": "Rajasthan",
+   "aliases": [
+    "pink city"
+   ],
+   "terminals": [
+    "Sindhi Camp Bus Stand"
+   ],
+   "areas": [
+    "Narayan Singh Circle",
+    "Durgapura"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Udaipur",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jodhpur",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ajmer",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Agra",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [
+    "ISBT Agra",
+    "Idgah Bus Stand"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Mathura",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Vrindavan"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Lucknow",
+   "state": "Uttar Pradesh",
+   "aliases": [
+    "lko"
+   ],
+   "terminals": [
+    "Alambagh Bus Station",
+    "Kaiserbagh Bus Station"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kanpur",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [
+    "Jhakarkati Bus Station"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Varanasi",
+   "state": "Uttar Pradesh",
+   "aliases": [
+    "banaras",
+    "benares",
+    "kashi"
+   ],
+   "terminals": [
+    "Varanasi Cantt Bus Stand"
+   ],
+   "areas": [],
+   "providers": {"redbus": {"id": 70429, "slug": "varanasi"}}
+  },
+  {
+   "name": "Prayagraj",
+   "state": "Uttar Pradesh",
+   "aliases": [
+    "allahabad"
+   ],
+   "terminals": [
+    "Civil Lines Bus Stand"
+   ],
+   "areas": [],
+   "providers": {"redbus": {"id": 84832, "slug": "allahabad"}}
+  },
+  {
+   "name": "Ayodhya",
+   "state": "Uttar Pradesh",
+   "aliases": [
+    "faizabad"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Gorakhpur",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Amritsar",
+   "state": "Punjab",
+   "aliases": [],
+   "terminals": [
+    "Amritsar ISBT"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ludhiana",
+   "state": "Punjab",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jalandhar",
+   "state": "Punjab",
+   "aliases": [
+    "jullundur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jammu",
+   "state": "Jammu and Kashmir",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Katra",
+   "state": "Jammu and Kashmir",
+   "aliases": [
+    "vaishno devi",
+    "katra vaishno devi"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Srinagar",
+   "state": "Jammu and Kashmir",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Mumbai",
+   "state": "Maharashtra",
+   "aliases": [
+    "bombay",
+    "bom"
+   ],
+   "terminals": [
+    "Mumbai Central Bus Depot",
+    "Dadar"
+   ],
+   "areas": [
+    "Borivali",
+    "Sion",
+    "Andheri"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Pune",
+   "state": "Maharashtra",
+   "aliases": [
+    "poona"
+   ],
+   "terminals": [
+    "Swargate Bus Stand",
+    "Shivajinagar Bus Stand"
+   ],
+   "areas": [
+    "Wakad",
+    "Hinjewadi",
+    "Katraj"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Nashik",
+   "state": "Maharashtra",
+   "aliases": [
+    "nasik"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Shirdi",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Nagpur",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kolhapur",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Chhatrapati Sambhajinagar",
+   "state": "Maharashtra",
+   "aliases": [
+    "aurangabad",
+    "sambhajinagar"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Aurangabad (Bihar)",
+   "state": "Bihar",
+   "aliases": [
+    "aurangabad"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Goa",
+   "state": "Goa",
+   "aliases": [
+    "panaji",
+    "panjim"
+   ],
+   "terminals": [
+    "Panaji Kadamba Bus Stand"
+   ],
+   "areas": [
+    "Margao",
+    "Madgaon",
+    "Mapusa"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Ahmedabad",
+   "state": "Gujarat",
+   "aliases": [
+    "amdavad"
+   ],
+   "terminals": [
+    "Geeta Mandir Bus Stand"
+   ],
+   "areas": [
+    "Paldi"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Surat",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Vadodara",
+   "state": "Gujarat",
+   "aliases": [
+    "baroda"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Rajkot",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Indore",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [
+    "Sarwate Bus Stand"
+   ],
+   "areas": [
+    "Vijay Nagar"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Bhopal",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [
+    "ISBT Bhopal"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bengaluru",
+   "state": "Karnataka",
+   "aliases": [
+    "bangalore",
+    "blr",
+    "bengaluru city"
+   ],
+   "terminals": [
+    "Kempegowda Bus Station",
+    "Majestic",
+    "Shanthinagar Bus Station",
+    "Mysore Road Satellite Bus Station"
+   ],
+   "areas": [
+    "Madiwala",
+    "Silk Board",
+    "Electronic City",
+    "Anand Rao Circle",
+    "Hebbal",
+    "Marathahalli"
+   ],
+   "providers": {
+    "redbus": {
+     "id": 122,
+     "slug": "bangalore"
+    }
+   }
+  },
+  {
+   "name": "Mysuru",
+   "state": "Karnataka",
+   "aliases": [
+    "mysore"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Mangaluru",
+   "state": "Karnataka",
+   "aliases": [
+    "mangalore"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hubballi",
+   "state": "Karnataka",
+   "aliases": [
+    "hubli",
+    "hubli dharwad"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Chennai",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "madras",
+    "maa"
+   ],
+   "terminals": [
+    "CMBT Koyambedu",
+    "Koyambedu",
+    "Kilambakkam Bus Terminus"
+   ],
+   "areas": [
+    "Guindy",
+    "Tambaram"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Coimbatore",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "kovai"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Madurai",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Puducherry",
+   "state": "Puducherry",
+   "aliases": [
+    "pondicherry",
+    "pondy"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hyderabad",
+   "state": "Telangana",
+   "aliases": [
+    "hyd"
+   ],
+   "terminals": [
+    "MGBS",
+    "Mahatma Gandhi Bus Station",
+    "JBS",
+    "Jubilee Bus Station"
+   ],
+   "areas": [
+    "Lakdikapul",
+    "Ameerpet",
+    "Kukatpally",
+    "LB Nagar",
+    "Miyapur",
+    "Secunderabad"
+   ],
+   "providers": {
+    "redbus": {
+     "id": 124,
+     "slug": "hyderabad"
+    }
+   }
+  },
+  {
+   "name": "Vijayawada",
+   "state": "Andhra Pradesh",
+   "aliases": [
+    "bezawada"
+   ],
+   "terminals": [
+    "Pandit Nehru Bus Station"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Visakhapatnam",
+   "state": "Andhra Pradesh",
+   "aliases": [
+    "vizag",
+    "vishakhapatnam"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Tirupati",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Tirumala"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Kochi",
+   "state": "Kerala",
+   "aliases": [
+    "cochin",
+    "ernakulam"
+   ],
+   "terminals": [
+    "Vyttila Mobility Hub"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Thiruvananthapuram",
+   "state": "Kerala",
+   "aliases": [
+    "trivandrum",
+    "tvm"
+   ],
+   "terminals": [
+    "Thampanoor Bus Station"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kolkata",
+   "state": "West Bengal",
+   "aliases": [
+    "calcutta",
+    "ccu"
+   ],
+   "terminals": [
+    "Esplanade Bus Terminus",
+    "Karunamoyee Bus Terminus"
+   ],
+   "areas": [
+    "Howrah"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Siliguri",
+   "state": "West Bengal",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bhubaneswar",
+   "state": "Odisha",
+   "aliases": [
+    "bbsr"
+   ],
+   "terminals": [
+    "Baramunda Bus Stand"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Patna",
+   "state": "Bihar",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ranchi",
+   "state": "Jharkhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Guwahati",
+   "state": "Assam",
+   "aliases": [
+    "gauhati"
+   ],
+   "terminals": [
+    "ISBT Guwahati"
+   ],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Navi Mumbai",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Vashi",
+    "Belapur",
+    "Kharghar",
+    "Panvel"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Thane",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Lonavala",
+   "state": "Maharashtra",
+   "aliases": [
+    "lonavla"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Mahabaleshwar",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Panchgani"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Solapur",
+   "state": "Maharashtra",
+   "aliases": [
+    "sholapur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ooty",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "udhagamandalam",
+    "ootacamund"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kodaikanal",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "kodai"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Tiruchirappalli",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "trichy",
+    "tiruchi"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Salem",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Vellore",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kanyakumari",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "cape comorin"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Udupi",
+   "state": "Karnataka",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Manipal"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Belagavi",
+   "state": "Karnataka",
+   "aliases": [
+    "belgaum"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hosapete",
+   "state": "Karnataka",
+   "aliases": [
+    "hospet"
+   ],
+   "terminals": [],
+   "areas": [
+    "Hampi"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Madikeri",
+   "state": "Karnataka",
+   "aliases": [
+    "coorg",
+    "kodagu",
+    "mercara"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Chikkamagaluru",
+   "state": "Karnataka",
+   "aliases": [
+    "chikmagalur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Gokarna",
+   "state": "Karnataka",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kozhikode",
+   "state": "Kerala",
+   "aliases": [
+    "calicut"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Munnar",
+   "state": "Kerala",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Alappuzha",
+   "state": "Kerala",
+   "aliases": [
+    "alleppey"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jaisalmer",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bikaner",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Mohali",
+   "state": "Punjab",
+   "aliases": [
+    "sas nagar"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Pathankot",
+   "state": "Punjab",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Meerut",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bareilly",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Gangtok",
+   "state": "Sikkim",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Darjeeling",
+   "state": "West Bengal",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Leh",
+   "state": "Ladakh",
+   "aliases": [
+    "leh ladakh"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Raipur",
+   "state": "Chhattisgarh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bilaspur (Chhattisgarh)",
+   "state": "Chhattisgarh",
+   "aliases": [
+    "bilaspur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {
+    "mmt": "Bilaspur"
+   }
+  },
+  {
+   "name": "Durg",
+   "state": "Chhattisgarh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Bhilai"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Jagdalpur",
+   "state": "Chhattisgarh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jabalpur",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Gwalior",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ujjain",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Sagar",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Rewa",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Satna",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Khajuraho",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Pachmarhi",
+   "state": "Madhya Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Aligarh",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Moradabad",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Saharanpur",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jhansi",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Muzaffarnagar",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Etawah",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Azamgarh",
+   "state": "Uttar Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hamirpur (Uttar Pradesh)",
+   "state": "Uttar Pradesh",
+   "aliases": [
+    "hamirpur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {
+    "mmt": "Hamirpur"
+   }
+  },
+  {
+   "name": "Almora",
+   "state": "Uttarakhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Pithoragarh",
+   "state": "Uttarakhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Roorkee",
+   "state": "Uttarakhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Rudrapur",
+   "state": "Uttarakhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kotdwar",
+   "state": "Uttarakhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kashipur",
+   "state": "Uttarakhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ramnagar",
+   "state": "Uttarakhand",
+   "aliases": [
+    "jim corbett",
+    "corbett"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Joshimath",
+   "state": "Uttarakhand",
+   "aliases": [
+    "jyotirmath"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bilaspur (Himachal Pradesh)",
+   "state": "Himachal Pradesh",
+   "aliases": [
+    "bilaspur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {
+    "mmt": "Bilaspur"
+   }
+  },
+  {
+   "name": "Hamirpur (Himachal Pradesh)",
+   "state": "Himachal Pradesh",
+   "aliases": [
+    "hamirpur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {
+    "mmt": "Hamirpur"
+   }
+  },
+  {
+   "name": "Una",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Palampur",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Chamba",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Dalhousie",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kasol",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Manikaran"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Solan",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kangra",
+   "state": "Himachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Reckong Peo",
+   "state": "Himachal Pradesh",
+   "aliases": [
+    "recong peo",
+    "kinnaur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kaza",
+   "state": "Himachal Pradesh",
+   "aliases": [
+    "spiti"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Patiala",
+   "state": "Punjab",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bathinda",
+   "state": "Punjab",
+   "aliases": [
+    "bhatinda"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Firozpur",
+   "state": "Punjab",
+   "aliases": [
+    "ferozepur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hoshiarpur",
+   "state": "Punjab",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Moga",
+   "state": "Punjab",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ambala",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Karnal",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Panipat",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kurukshetra",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hisar",
+   "state": "Haryana",
+   "aliases": [
+    "hissar"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Rohtak",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Sirsa",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Yamunanagar",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Panchkula",
+   "state": "Haryana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kota",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bhilwara",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Alwar",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Mount Abu",
+   "state": "Rajasthan",
+   "aliases": [
+    "abu road"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Pushkar",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Chittorgarh",
+   "state": "Rajasthan",
+   "aliases": [
+    "chittaurgarh"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Sikar",
+   "state": "Rajasthan",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bhavnagar",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jamnagar",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Junagadh",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Gandhinagar",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bhuj",
+   "state": "Gujarat",
+   "aliases": [
+    "kutch"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Anand",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Dwarka",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Somnath",
+   "state": "Gujarat",
+   "aliases": [
+    "veraval"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Porbandar",
+   "state": "Gujarat",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Amravati",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Akola",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jalgaon",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ahilyanagar",
+   "state": "Maharashtra",
+   "aliases": [
+    "ahmednagar"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Satara",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Sangli",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ratnagiri",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Latur",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Nanded",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Chandrapur",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Pandharpur",
+   "state": "Maharashtra",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Davanagere",
+   "state": "Karnataka",
+   "aliases": [
+    "davangere"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Shivamogga",
+   "state": "Karnataka",
+   "aliases": [
+    "shimoga"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ballari",
+   "state": "Karnataka",
+   "aliases": [
+    "bellary"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kalaburagi",
+   "state": "Karnataka",
+   "aliases": [
+    "gulbarga"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Vijayapura",
+   "state": "Karnataka",
+   "aliases": [
+    "bijapur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Tumakuru",
+   "state": "Karnataka",
+   "aliases": [
+    "tumkur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hassan",
+   "state": "Karnataka",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Karwar",
+   "state": "Karnataka",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bidar",
+   "state": "Karnataka",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Raichur",
+   "state": "Karnataka",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Chitradurga",
+   "state": "Karnataka",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Thrissur",
+   "state": "Kerala",
+   "aliases": [
+    "trichur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kannur",
+   "state": "Kerala",
+   "aliases": [
+    "cannanore"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kollam",
+   "state": "Kerala",
+   "aliases": [
+    "quilon"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kottayam",
+   "state": "Kerala",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Palakkad",
+   "state": "Kerala",
+   "aliases": [
+    "palghat"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kasaragod",
+   "state": "Kerala",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kalpetta",
+   "state": "Kerala",
+   "aliases": [
+    "wayanad"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kumily",
+   "state": "Kerala",
+   "aliases": [
+    "thekkady"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Guruvayur",
+   "state": "Kerala",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Tirunelveli",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Thanjavur",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "tanjore"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Erode",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Tiruppur",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "tirupur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Nagercoil",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Thoothukudi",
+   "state": "Tamil Nadu",
+   "aliases": [
+    "tuticorin"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kumbakonam",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Rameswaram",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Karaikudi",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hosur",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Dindigul",
+   "state": "Tamil Nadu",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Guntur",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Nellore",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kurnool",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Rajamahendravaram",
+   "state": "Andhra Pradesh",
+   "aliases": [
+    "rajahmundry"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kakinada",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Anantapur",
+   "state": "Andhra Pradesh",
+   "aliases": [
+    "anantapuramu"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kadapa",
+   "state": "Andhra Pradesh",
+   "aliases": [
+    "cuddapah"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Ongole",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Srikakulam",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Vizianagaram",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Chittoor",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Puttaparthi",
+   "state": "Andhra Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Warangal",
+   "state": "Telangana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Karimnagar",
+   "state": "Telangana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Nizamabad",
+   "state": "Telangana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Khammam",
+   "state": "Telangana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Adilabad",
+   "state": "Telangana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Mahabubnagar",
+   "state": "Telangana",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Cuttack",
+   "state": "Odisha",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Puri",
+   "state": "Odisha",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Berhampur",
+   "state": "Odisha",
+   "aliases": [
+    "brahmapur"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Sambalpur",
+   "state": "Odisha",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Rourkela",
+   "state": "Odisha",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Balasore",
+   "state": "Odisha",
+   "aliases": [
+    "baleswar"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Durgapur",
+   "state": "West Bengal",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Asansol",
+   "state": "West Bengal",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kharagpur",
+   "state": "West Bengal",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Digha",
+   "state": "West Bengal",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Malda",
+   "state": "West Bengal",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Gaya",
+   "state": "Bihar",
+   "aliases": [],
+   "terminals": [],
+   "areas": [
+    "Bodh Gaya"
+   ],
+   "providers": {}
+  },
+  {
+   "name": "Muzaffarpur",
+   "state": "Bihar",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bhagalpur",
+   "state": "Bihar",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Darbhanga",
+   "state": "Bihar",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Purnia",
+   "state": "Bihar",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jamshedpur",
+   "state": "Jharkhand",
+   "aliases": [
+    "tatanagar"
+   ],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Dhanbad",
+   "state": "Jharkhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Bokaro",
+   "state": "Jharkhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Deoghar",
+   "state": "Jharkhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Hazaribagh",
+   "state": "Jharkhand",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Silchar",
+   "state": "Assam",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Dibrugarh",
+   "state": "Assam",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Jorhat",
+   "state": "Assam",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Tezpur",
+   "state": "Assam",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Shillong",
+   "state": "Meghalaya",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Agartala",
+   "state": "Tripura",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Imphal",
+   "state": "Manipur",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Dimapur",
+   "state": "Nagaland",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kohima",
+   "state": "Nagaland",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Aizawl",
+   "state": "Mizoram",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Itanagar",
+   "state": "Arunachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Tawang",
+   "state": "Arunachal Pradesh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Udhampur",
+   "state": "Jammu and Kashmir",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Pahalgam",
+   "state": "Jammu and Kashmir",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  },
+  {
+   "name": "Kargil",
+   "state": "Ladakh",
+   "aliases": [],
+   "terminals": [],
+   "areas": [],
+   "providers": {}
+  }
+ ],
+ "routes": {
+  "abhibus": {
+   "Delhi|Manali": 108
+  }
+ }
+}

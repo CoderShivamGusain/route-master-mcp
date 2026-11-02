@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "route-master": {
+      "httpUrl": "https://your-host.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${ROUTE_MASTER_TOKEN}" },
+      "timeout": 30000
+    }
+  }
+}

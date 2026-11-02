@@ -1,0 +1,6 @@
+# Development tools: tests and lint (same as [dependency-groups].dev in pyproject.toml).
+#   pip install -r requirements-dev.txt -e .
+-r requirements.txt
+pytest>=8
+anyio>=4
+ruff>=0.6

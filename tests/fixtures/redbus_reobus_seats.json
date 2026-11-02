@@ -1,0 +1,535 @@
+{
+"_source": "redBus seat map, ReoBus Pro Delhi->Manali 22:25, 2 Nov 2026 (read 1 Nov 2026)",
+"seats": [
+{
+"number": "1",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 258
+},
+{
+"number": "2",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 258
+},
+{
+"number": "3",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 258
+},
+{
+"number": "4",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 258
+},
+{
+"number": "5",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 302
+},
+{
+"number": "6",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 302
+},
+{
+"number": "7",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 302
+},
+{
+"number": "8",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 302
+},
+{
+"number": "9",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 346
+},
+{
+"number": "10",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 346
+},
+{
+"number": "11",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 346
+},
+{
+"number": "12",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 346
+},
+{
+"number": "13",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 390
+},
+{
+"number": "14",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 390
+},
+{
+"number": "15",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": "reserved for male",
+"price": 697,
+"status": "sold",
+"x": 184,
+"y": 390
+},
+{
+"number": "16",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": "reserved for male",
+"price": 697,
+"status": "sold",
+"x": 144,
+"y": 390
+},
+{
+"number": "17",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 304,
+"y": 434
+},
+{
+"number": "18",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 264,
+"y": 434
+},
+{
+"number": "19",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 184,
+"y": 434
+},
+{
+"number": "20",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 144,
+"y": 434
+},
+{
+"number": "21",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 304,
+"y": 478
+},
+{
+"number": "22",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 264,
+"y": 478
+},
+{
+"number": "23",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 478
+},
+{
+"number": "24",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 478
+},
+{
+"number": "25",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 522
+},
+{
+"number": "26",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 522
+},
+{
+"number": "27",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 522
+},
+{
+"number": "28",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 522
+},
+{
+"number": "29",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 566
+},
+{
+"number": "30",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 566
+},
+{
+"number": "31",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 566
+},
+{
+"number": "32",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 566
+},
+{
+"number": "33",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 610
+},
+{
+"number": "34",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 610
+},
+{
+"number": "35",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 184,
+"y": 610
+},
+{
+"number": "36",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 144,
+"y": 610
+},
+{
+"number": "37",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 304,
+"y": 654
+},
+{
+"number": "38",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "sold",
+"x": 264,
+"y": 654
+},
+{
+"number": "39",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 654
+},
+{
+"number": "40",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 654
+},
+{
+"number": "41",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 698
+},
+{
+"number": "42",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 698
+},
+{
+"number": "43",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 698
+},
+{
+"number": "44",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 698
+},
+{
+"number": "45",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 304,
+"y": 742
+},
+{
+"number": "46",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 264,
+"y": 742
+},
+{
+"number": "47",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 184,
+"y": 742
+},
+{
+"number": "48",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 697,
+"status": "available",
+"x": 144,
+"y": 742
+},
+{
+"number": "49",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 547,
+"status": "available",
+"x": 304,
+"y": 786
+},
+{
+"number": "50",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 547,
+"status": "available",
+"x": 264,
+"y": 786
+},
+{
+"number": "51",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 547,
+"status": "available",
+"x": 224,
+"y": 786
+},
+{
+"number": "52",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 547,
+"status": "available",
+"x": 184,
+"y": 786
+},
+{
+"number": "53",
+"deck": "lower",
+"seat_type": "seater",
+"reserved_for": null,
+"price": 547,
+"status": "available",
+"x": 144,
+"y": 786
+}
+]
+}

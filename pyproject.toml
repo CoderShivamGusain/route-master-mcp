@@ -1,0 +1,47 @@
+[project]
+name = "mcp-route-master"
+version = "0.7.0"
+description = "MCP server that helps travellers in India find the right intercity bus, book it on official sites, and avoid booking scams. Works with Claude, ChatGPT and Gemini."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "TechnocratIQ" }]
+keywords = ["mcp", "fastmcp", "bus", "india", "travel", "claude", "chatgpt", "gemini"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Internet",
+]
+dependencies = [
+    "fastmcp>=4.1,<5",
+    "platformdirs>=4.0",
+]
+
+[project.scripts]
+mcp-route-master = "mcp_route_master.server:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "anyio>=4", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_route_master"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]  # long user-facing strings; the formatter handles code width
+
+[tool.uv]
+# Rebuild when source or data changes, so `uvx --from <folder>` picks up edits after a restart.
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.py" }, { file = "src/**/*.json" }]

@@ -1,0 +1,7 @@
+# Runtime dependencies for mcp-route-master (same as [project.dependencies] in pyproject.toml).
+# Tested with fastmcp 4.1.4 on Python 3.10+.
+#   pip install -r requirements.txt
+#   pip install -e .          (installs the mcp-route-master command)
+#   mcp-route-master          (stdio)  or  mcp-route-master --transport http --port 8000
+fastmcp>=4.1,<5
+platformdirs>=4.0

@@ -1,0 +1,21 @@
+# Render Blueprint: New → Blueprint → pick this repo. Render reads this file from the repo root.
+# The server speaks MCP over Streamable HTTP at https://<service>.onrender.com/mcp (health: /health).
+# Free plan: sleeps after ~15 minutes idle; the first request after that takes about a minute.
+services:
+  - type: web
+    name: mcp-route-master
+    runtime: docker
+    plan: free
+    region: singapore        # closest Render region to India
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true          # redeploy on every push to the default branch
+    envVars:
+      - key: LOG_LEVEL
+        value: INFO
+      # Optional. ChatGPT and the Gemini app can't send a fixed token, so leave this off for them.
+      # - key: MCP_AUTH_TOKEN
+      #   generateValue: true
+      # Optional: browser-based clients (web inspectors) need CORS.
+      # - key: MCP_CORS_ORIGINS
+      #   value: https://inspector.example.com

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "route-master": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "C:\\Users\\LENOVO\\Desktop\\TechnocratIQ\\myProject\\mcp-route-master",
+        "mcp-route-master"
+      ]
+    }
+  }
+}
