@@ -12,6 +12,9 @@ AI + route-master: finds the buses on redBus/MakeMyTrip, ranks them, checks the 
 You: pay.
 ```
 
+**Hosted server:** `https://mcp-route-master.onrender.com/mcp`. Add it to Claude, ChatGPT or Gemini in a minute, see
+[Connect to the hosted server](#connect-to-the-hosted-server).
+
 ---
 
 ## Contents
@@ -21,7 +24,8 @@ You: pay.
 - [Tools](#tools)
 - [Resources, templates and prompts](#resources-templates-and-prompts)
 - [A booking, step by step](#a-booking-step-by-step)
-- [Install and connect](#install-and-connect)
+- [Connect to the hosted server](#connect-to-the-hosted-server)
+- [Run it yourself](#run-it-yourself)
 - [Configuration](#configuration)
 - [Supported sites](#supported-sites)
 - [Safety and privacy](#safety-and-privacy)
@@ -58,13 +62,15 @@ the payment must happen in a browser you control. So the work is split three way
 
 | App | Connect | How booking works |
 |---|---|---|
-| **Claude Desktop** | local (stdio) | **The AI clicks** in Claude's browser: `page_action` + `read_page`, you confirm and pay |
-| **Claude Code / Claude in Chrome** | local (stdio) | The AI clicks (Chrome), or you click |
-| **claude.ai** (web, mobile) | remote HTTPS | You click |
-| **ChatGPT** (developer mode, paid plans) | remote HTTPS | **You click**: paste the results page → `rank_pasted_results` → `booking_steps` for you |
-| **Gemini CLI** | local (stdio) or remote | You click (paste mode) |
-| **Gemini app** | remote HTTPS (limited availability) | You click (paste mode) |
-| **Gemini API / agents** | remote, optional Bearer header | Your code decides |
+| **Claude Desktop** | hosted URL (connector) or local (stdio) | **The AI clicks** in Claude's browser: `page_action` + `read_page`, you confirm and pay |
+| **Claude Code / Claude in Chrome** | hosted URL or local (stdio) | The AI clicks (Chrome), or you click |
+| **claude.ai** (web, mobile) | hosted URL (connector) | You click |
+| **ChatGPT** (developer mode) | hosted URL | **You click**: paste the results page → `rank_pasted_results` → `booking_steps` for you |
+| **Gemini app** | hosted URL (custom app; limited availability) | You click (paste mode) |
+| **Gemini CLI** | hosted URL or local (stdio) | You click (paste mode) |
+| **Gemini API / agents** | hosted URL, or your own server with a Bearer header | Your code decides |
+
+**Quickest start:** add `https://mcp-route-master.onrender.com/mcp` to your AI app, see [Connect to the hosted server](#connect-to-the-hosted-server).
 
 Every app gets the same links, ranking, operator and scam checks, seat maps and the pre-payment
 check. Only apps that can control your browser can do the clicking; everywhere else you click
@@ -161,7 +167,112 @@ What happens when you ask *"book a sleeper from Dehradun to Varanasi tonight"* i
    > **Pay here (redbus.in):** https://www.redbus.in/paymentDetails
 9. **You pay.** The ticket arrives by SMS/email.
 
-## Install and connect
+## Connect to the hosted server
+
+route-master is live at:
+
+```
+https://mcp-route-master.onrender.com/mcp
+```
+
+Streamable HTTP, no sign-in, no API key. All 12 tools are read-only. Health check:
+<https://mcp-route-master.onrender.com/health>.
+
+> **First call can be slow.** It runs on Render's free plan, which sleeps after about 15 minutes
+> idle. The first request then takes up to a minute; if the app reports a timeout, ask again.
+
+| App | Where to add it | Booking |
+|---|---|---|
+| [Claude (claude.ai, Desktop, mobile)](#claude-claudeai-desktop-mobile) | Customize → Connectors → Add custom connector | **Claude clicks** in its browser (Desktop) |
+| [Claude Code](#claude-code) | `claude mcp add --transport http …` | Claude clicks (Claude in Chrome) or you click |
+| [ChatGPT](#chatgpt) | Developer mode → add the app by URL | You click (paste the results page) |
+| [Gemini app](#gemini-app-geminigooglecom) | Settings → Connected apps → Add a custom app | You click (paste the results page) |
+| [Gemini CLI](#gemini-cli) | `gemini mcp add --transport http …` | You click (paste the results page) |
+| [Any other MCP client](#any-other-mcp-client) | Streamable HTTP URL above | Depends on the client |
+
+### Claude (claude.ai, Desktop, mobile)
+1. Open [claude.ai](https://claude.ai) → **Customize** (or **Settings**) → **Connectors**.
+2. Click **Add custom connector**.
+3. Name: `route-master` · URL: `https://mcp-route-master.onrender.com/mcp` · leave the OAuth fields empty → **Add**.
+4. In a chat, open the **+** / tools menu and make sure **route-master** is switched on.
+
+A connector added on claude.ai also appears in Claude Desktop and the mobile apps. The Free plan
+allows one custom connector; Pro, Max, Team and Enterprise allow more (on Team/Enterprise an Owner
+adds it under Organization settings → Connectors). In **Claude Desktop** with its built-in browser
+(or Claude in Chrome), Claude opens redBus/MakeMyTrip, reads each page with route-master and does
+the clicking up to the payment page.
+
+### Claude Code
+```bash
+claude mcp add --transport http route-master https://mcp-route-master.onrender.com/mcp
+```
+Check with `claude mcp list` (or `/mcp` inside Claude Code).
+
+### ChatGPT
+1. ChatGPT on the web → **Settings → Apps** (called *Apps & Connectors* or *Connectors* in some
+   versions) → **Advanced settings** → turn on **Developer mode**.
+2. Back in **Apps**, click **Create** (or **+ / Add**), then:
+   - Name: `route-master`
+   - MCP server URL: `https://mcp-route-master.onrender.com/mcp`
+   - Authentication: **No authentication** (None)
+   - Tick "I trust this application" → **Create**.
+3. In a **new chat**, open **+ → Developer mode** (or **More → route-master**) and select
+   **route-master** for that chat. Turning it on in Settings alone isn't enough.
+4. Ask: *"Use route-master: sleeper bus Delhi to Dehradun tonight."*
+
+OpenAI documents developer mode for Plus, Pro, Business, Enterprise and Education; our test also
+worked on a Free account, but menus and availability change. ChatGPT can't control your browser,
+so it works in **paste mode**: open the link route-master gives, select all and copy the results
+page, paste it into the chat, and route-master ranks the real buses (`rank_pasted_results`).
+Then it gives you step-by-step instructions to finish on the site (`booking_steps`). More in
+`docs/chatgpt.md`.
+
+### Gemini app (gemini.google.com)
+1. On the **web** (gemini.google.com) → **Settings → Connected apps**.
+2. Under **Custom apps**, click **Add a custom app**, paste `https://mcp-route-master.onrender.com/mcp` → **Next** → approve.
+3. In a chat, mention it: *"@route-master sleeper bus Delhi to Dehradun tonight"*.
+
+Custom apps can only be added from the web app (they then show on mobile too), and for now only
+in English and for some accounts. Like ChatGPT, Gemini works in **paste mode**: copy the results
+page from the link and paste it in. Gemini sometimes answers from its own knowledge instead of
+calling the tools; if the answer has no route-master links or tables, say
+*"use the route-master tools only"*. More in `docs/gemini.md`.
+
+### Gemini CLI
+```bash
+gemini mcp add --transport http route-master https://mcp-route-master.onrender.com/mcp
+```
+Or add this to `~/.gemini/settings.json` (Windows: `%USERPROFILE%\.gemini\settings.json`):
+```json
+{
+  "mcpServers": {
+    "route-master": { "httpUrl": "https://mcp-route-master.onrender.com/mcp", "timeout": 60000 }
+  }
+}
+```
+Run `/mcp` inside Gemini CLI to see the tools; the prompts (`find_bus`, `book_bus`, `check_scam`)
+appear as slash commands. A copy is in `examples/gemini_cli_remote.json`.
+
+### Any other MCP client
+Use transport **Streamable HTTP** and URL `https://mcp-route-master.onrender.com/mcp` (no headers). To test without an AI:
+```bash
+npx @modelcontextprotocol/inspector
+```
+then choose *Streamable HTTP*, paste the URL, **Connect** → **List Tools** (12 tools).
+
+### If it doesn't work
+| Problem | Fix |
+|---|---|
+| Timeout or "couldn't connect" on the first try | The free server was asleep. Wait a minute and ask again, or open the `/health` link first. |
+| ChatGPT/Gemini answers without using route-master | Select the app for that chat (ChatGPT: + → Developer mode; Gemini: mention `@route-master`) and say "use route-master". |
+| Fares or seat numbers that no page showed | They didn't come from route-master. Paste the results page so the real buses are ranked. |
+| A link was removed as "suspicious" (Gemini) | Use the redBus link; or ask route-master for the links again. |
+| Claude can't click on the site | Use Claude Desktop with its built-in browser (or Claude in Chrome); on claude.ai web/mobile you click yourself. |
+
+## Run it yourself
+
+To run your own copy, locally or on your own host.
+
 
 Needs Python 3.10+ and [uv](https://docs.astral.sh/uv/getting-started/installation/). Until the
 package is on PyPI, point `uvx` at this folder (replace the path with yours). After publishing,
@@ -170,7 +281,7 @@ use `"args": ["mcp-route-master"]`.
 Without uv: `pip install -r requirements.txt && pip install -e .`, then use
 `"command": "mcp-route-master"` (no args) in the configs below.
 
-### Claude Desktop (free plan works)
+### Claude Desktop, local (free plan works)
 Settings → Developer → Edit Config, then add to `claude_desktop_config.json`:
 ```json
 {
@@ -185,18 +296,18 @@ Settings → Developer → Edit Config, then add to `claude_desktop_config.json`
 Restart Claude Desktop after every update. See `examples/claude_desktop_config.json`.
 For assisted booking, use Claude's built-in browser (or Claude in Chrome).
 
-### Gemini CLI (free)
+### Gemini CLI, local (free)
 Add the same block to `~/.gemini/settings.json` (Windows: `%USERPROFILE%\.gemini\settings.json`).
 See `examples/gemini_settings.json`; for a remote server, `examples/gemini_cli_remote.json`.
 Type `/mcp` in Gemini CLI to see the tools; the prompts appear as slash commands. More in
 `docs/gemini.md`.
 
-### Claude Code
+### Claude Code (local)
 ```bash
 claude mcp add route-master -- uvx --from "C:\Users\LENOVO\Desktop\TechnocratIQ\myProject\mcp-route-master" mcp-route-master
 ```
 
-### ChatGPT, claude.ai (web/mobile) and the Gemini app: remote HTTP
+### Your own remote server (for ChatGPT, claude.ai and the Gemini app)
 These run in the cloud, so they connect only to a **public HTTPS URL** (Streamable HTTP at `/mcp`).
 
 1. **Get a URL.**
