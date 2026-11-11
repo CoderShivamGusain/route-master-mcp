@@ -5,3 +5,5 @@
 #   mcp-route-master          (stdio)  or  mcp-route-master --transport http --port 8000
 fastmcp>=4.1,<5
 platformdirs>=4.0
+redis>=5.0
+websockets>=14.0

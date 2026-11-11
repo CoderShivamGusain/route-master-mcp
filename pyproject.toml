@@ -1,6 +1,6 @@
 [project]
 name = "mcp-route-master"
-version = "0.7.0"
+version = "0.8.0"
 description = "MCP server that helps travellers in India find the right intercity bus, book it on official sites, and avoid booking scams. Works with Claude, ChatGPT and Gemini."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,6 +15,8 @@ classifiers = [
 dependencies = [
     "fastmcp>=4.1,<5",
     "platformdirs>=4.0",
+    "redis>=5.0",        # signed-in mode: keeps Google sign-ins across restarts (REDIS_URL)
+    "websockets>=14.0",  # signed-in mode: the extension's live connection (/ext/ws)
 ]
 
 [project.scripts]

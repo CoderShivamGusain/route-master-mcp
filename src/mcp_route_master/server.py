@@ -198,8 +198,12 @@ def _strip_null_defaults(schema: Any) -> None:
             _strip_null_defaults(value)
 
 
-def _tool(**kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """Like @mcp.tool, but publishes a parameter schema every host accepts."""
+def _tool(
+    *, server: FastMCP | None = None, **kwargs: Any
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Like @mcp.tool, but publishes a parameter schema every host accepts.
+
+    `server` registers the tool on another FastMCP server (the signed-in one, extension/app.py)."""
 
     def register(fn: Callable[..., Any]) -> Callable[..., Any]:
         annotations = kwargs.pop("annotations", None)
@@ -207,7 +211,7 @@ def _tool(**kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
             fn, annotations=ToolAnnotations(**annotations) if annotations else None, **kwargs
         )
         _strip_null_defaults(tool.parameters)
-        mcp.add_tool(tool)
+        (server or mcp).add_tool(tool)
         return fn
 
     return register
@@ -1737,6 +1741,29 @@ def main(argv: list[str] | None = None) -> None:
     allowed = args.allowed_host or [
         h.strip() for h in os.environ.get("MCP_ALLOWED_HOSTS", "").split(",") if h.strip()
     ]
+    # Signed-in mode (Google sign-in at /app/mcp for the Chrome extension) when GOOGLE_CLIENT_ID is set.
+    from mcp_route_master.extension.app import build_combined_app, settings_from_env
+
+    cfg = settings_from_env()
+    if cfg is not None:
+        import uvicorn
+
+        app = build_combined_app(cfg, open_path=args.path, allowed_hosts=allowed or None)
+        logging.getLogger(__name__).warning(
+            "mcp-route-master %s: open MCP at %s, signed-in MCP at /app/mcp, extension at /ext/ws",
+            __version__,
+            args.path,
+        )
+        uvicorn.run(
+            app,
+            host=args.host,
+            port=args.port,
+            lifespan="on",
+            ws="websockets-sansio",
+            timeout_graceful_shutdown=2,
+            log_level=os.environ.get("LOG_LEVEL", "info").lower(),
+        )
+        return
     mcp.run(
         transport="http",
         host=args.host,
