@@ -52,3 +52,17 @@ Don't set `MCP_ALLOWED_HOSTS` on Render: the server is public and Render forward
 - The server is stateless (`stateless_http`) and keeps nothing between requests except the local
   "unknown place names" review list in `/data`, which a free instance loses on each deploy. That's fine.
 - Every push to `main` redeploys. Roll back from Render → service → **Events**.
+
+## Signed-in mode (Chrome extension)
+Add these in Render → Environment to turn on `/app/mcp` and the extension endpoints (see
+`route-master-extension/README.md`):
+
+| Variable | Value |
+|---|---|
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth Web client (redirect URIs: `https://<service>.onrender.com/auth/callback` and the extension's `https://<extension-id>.chromiumapp.org/`) |
+| `BASE_URL` | `https://<service>.onrender.com` |
+| `JWT_SIGNING_KEY` | 40+ random characters |
+| `REDIS_URL` | Optional `rediss://…` (Upstash free tier) so sign-ins survive restarts |
+
+Without `GOOGLE_CLIENT_ID` the server runs exactly as before (open `/mcp` only).
+

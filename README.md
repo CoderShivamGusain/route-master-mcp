@@ -25,6 +25,7 @@ You: pay.
 - [Resources, templates and prompts](#resources-templates-and-prompts)
 - [A booking, step by step](#a-booking-step-by-step)
 - [Connect to the hosted server](#connect-to-the-hosted-server)
+- [Signed-in mode: the Chrome extension](#signed-in-mode-the-chrome-extension)
 - [Run it yourself](#run-it-yourself)
 - [Configuration](#configuration)
 - [Supported sites](#supported-sites)
@@ -269,6 +270,38 @@ then choose *Streamable HTTP*, paste the URL, **Connect** → **List Tools** (12
 | A link was removed as "suspicious" (Gemini) | Use the redBus link; or ask route-master for the links again. |
 | Claude can't click on the site | Use Claude Desktop with its built-in browser (or Claude in Chrome); on claude.ai web/mobile you click yourself. |
 
+## Signed-in mode: the Chrome extension
+
+With the **route-master Chrome extension**, any AI app (Claude, ChatGPT, Gemini) can book in **your
+own Chrome** while you only chat. The AI picks nothing on its own: you choose the bus, seat and
+stops, and you pay yourself. Setup and details are in
+[`route-master-extension/README.md`](route-master-extension/README.md).
+
+| Address | Sign-in | What you get |
+|---|---|---|
+| `https://mcp-route-master.onrender.com/mcp` | none | Guided mode: links, ranking, scam checks, steps (you click) |
+| `https://mcp-route-master.onrender.com/app/mcp` | Google | Everything above, plus `browser_*` tools that book through the extension |
+
+1. Install the extension (**Load unpacked**) and **Sign in with Google**.
+2. Add `/app/mcp` as a connector in your AI app and sign in with the **same Google account**.
+3. Chat. Every step is one tool call that returns what the page now shows:
+   - `browser_open`: ranked buses;
+   - `browser_action` with `open_bus`, `select_seats`, `choose_points`, `decline_addons` or `continue`;
+   - `browser_fill` and `browser_choose`: the passenger form, after you agree;
+   - the final `continue`: only after you "confirm" a problem-free summary; the payment page then
+     opens in front for you.
+
+**How the server finds your browser:** the connector's sign-in and the extension's sign-in carry the
+same Google account ID. The extension keeps a live WebSocket to `/ext/ws`, and the server sends each
+step to that connection.
+
+| Signed-in mode setting | Purpose |
+|---|---|
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth Web client. Setting the ID turns signed-in mode on. |
+| `BASE_URL` | Public URL, e.g. `https://mcp-route-master.onrender.com` (redirect URI: `BASE_URL/auth/callback`) |
+| `JWT_SIGNING_KEY` | 32+ random characters; signs sign-in and extension tokens (changing it signs everyone out) |
+| `REDIS_URL` | Optional `rediss://…` (e.g. Upstash free tier): keeps sign-ins across restarts, encrypted |
+
 ## Run it yourself
 
 To run your own copy, locally or on your own host.
@@ -364,6 +397,7 @@ npx @modelcontextprotocol/inspector uvx --from . mcp-route-master
 | `MCP_AUTH_TOKEN` | none | HTTP mode: require `Authorization: Bearer <token>` (16+ characters). `/health` stays open |
 | `MCP_CORS_ORIGINS` | none | HTTP mode: comma-separated origins (or `*`) allowed for browser-based clients |
 | `LOG_LEVEL` | `WARNING` | Logs go to stderr (stdout carries MCP in stdio mode) |
+| `GOOGLE_CLIENT_ID` and co. | none | Signed-in mode for the Chrome extension, see [Signed-in mode](#signed-in-mode-the-chrome-extension) |
 
 `mcp-route-master --version` and `--show-data-dir` print the version and the data folder.
 
@@ -421,6 +455,10 @@ mcp-route-master/
     server.py          FastMCP server: 12 tools, instructions, CLI (stdio + Streamable HTTP)
     extras.py          MCP resources, resource templates and prompts
     http_options.py    remote mode: optional Bearer token and CORS
+    extension/         signed-in mode for the Chrome extension
+      app.py             /app/mcp (Google sign-in, browser_* tools) and the combined web app
+      relay.py           live WebSocket connections to users' extensions (/ext/ws)
+      tokens.py          Google ID-token check and the extension's own signed token
     places/            where and when
       resolver.py        place names → hubs (aliases, bus stands, fuzzy match, ambiguity)
       links.py           per-site dated booking links
@@ -437,6 +475,7 @@ mcp-route-master/
     browser/           reading and acting on the open booking page
       scripts.py         browser scripts: page capture, select seats, choose stops, decline extras
       pages.py           parses captured redBus/MakeMyTrip pages (results, seats, stops, form, payment)
+      extension_bundle.py  builds the extension's page/actions.js from scripts.py
     common/            shared helpers
       schema.py          portable optional fields for tool schemas (no anyOf/null)
       store.py           user data folder: local overrides, review queue
@@ -447,6 +486,7 @@ mcp-route-master/
     integration/       MCP contract, stdio/HTTP end-to-end, live-test regressions
     browser/           browser scripts on mock pages in headless Chromium (+ js/ Node runner)
     fixtures/          page captures recorded live (redBus, MakeMyTrip)
+  route-master-extension/  Chrome extension (Manifest V3): background.js, page/, popup/, README.md
   docs/                setup guides: ChatGPT, Gemini, remote HTTP, Render
   examples/            ready-to-copy client configs (Claude Desktop, Gemini CLI)
   deploy/              Fly.io and Cloud Run templates
@@ -524,7 +564,7 @@ source; the safety checker treats those domains as official.
 
 ---
 
-Version 0.7.0 · Python 3.10+ · FastMCP 4.1
+Version 0.8.0 · Python 3.10+ · FastMCP 4.1
 
 ## License
 
