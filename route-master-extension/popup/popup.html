@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h1>route-master</h1>
+  <p id="status">Checking…</p>
+  <button id="signin" hidden>Sign in with Google</button>
+  <button id="reconnect" hidden>Use this Chrome</button>
+  <button id="signout" hidden>Sign out</button>
+  <label class="row">Booking window
+    <select id="window">
+      <option value="normal">Behind your other windows</option>
+      <option value="minimized">Minimised (experimental)</option>
+    </select>
+  </label>
+  <p class="note">Use the same Google account when you add route-master to Claude, ChatGPT or Gemini
+    (<code>/app/mcp</code>). You always pay yourself; route-master never touches card, UPI or OTP fields.</p>
+  <p id="error" class="error" hidden></p>
+  <script src="popup.js"></script>
+</body>
+</html>
