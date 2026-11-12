@@ -130,6 +130,10 @@ Hosting your own server: change `SERVER_URL` in `config.js` and the server host 
 
 ## Limits
 
+- **The route-master window may pop to the front for a few seconds** when a seat map is opened:
+  Chrome doesn't draw pages in covered or minimized windows, and redBus only draws its seats while
+  the page is displayed. It goes back behind (or minimized) as soon as the seats are read.
+
 - **Desktop Chrome or Edge only.** Phones have no Chrome extensions; there the open `/mcp` gives
   guided booking.
 - **Your computer must be on**, with Chrome running and the extension signed in. Otherwise the AI

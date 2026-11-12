@@ -268,7 +268,34 @@ async function waitFor(check, ms) {
 // few seconds later; reading the page in between gave "no seats", live 12 Nov 2026).
 const seatsDrawn = tabId => exec(tabId, () =>
   !!document.querySelector('[data-testid^="seat_"], [aria-label^="Seat number"]'));
-const opened = async (tabId, how) => ({ clicked: how, seat_map: true, seats: await waitFor(() => seatsDrawn(tabId), 20000) });
+// On the seat step with no seats yet.
+const seatsPending = tabId => exec(tabId, () => /[?&]step=SL/i.test(location.search) &&
+  !document.querySelector('[data-testid^="seat_"], [aria-label^="Seat number"]'));
+
+// Chrome stops drawing pages in windows that are minimized or fully covered, and redBus only draws
+// its seats while the page is displayed (live, 12 Nov 2026: "seat map still loading" forever). So
+// show the route-master window while `fn` runs, then put things back as they were.
+async function surface(tabId, fn) {
+  const tab = await chrome.tabs.get(tabId);
+  const win = await chrome.windows.get(tab.windowId);
+  let prev = null;
+  try { prev = await chrome.windows.getLastFocused(); } catch { /* no other window */ }
+  await chrome.windows.update(win.id, { state: "normal", focused: true });
+  await chrome.tabs.update(tabId, { active: true });
+  try { return await fn(); }
+  finally {
+    if (win.state === "minimized") await chrome.windows.update(win.id, { state: "minimized" }).catch(() => {});
+    if (prev && prev.id !== win.id) await chrome.windows.update(prev.id, { focused: true }).catch(() => {});
+  }
+}
+
+// Wait for the seats; if they don't come while the window is in the background, show it briefly.
+async function awaitSeats(tabId) {
+  if (await waitFor(() => seatsDrawn(tabId), 6000)) return { seats: true, shown: false };
+  const seats = await surface(tabId, () => waitFor(() => seatsDrawn(tabId), 20000));
+  return { seats, shown: true };
+}
+const opened = async (tabId, how) => ({ clicked: how, seat_map: true, ...(await awaitSeats(tabId)) });
 
 async function openBus(tabId, g) {
   const start = Date.now();
@@ -315,7 +342,11 @@ async function run(op, args, g = null) {
     }
   }
   const tab = await getTab(false);
-  if (op === "capture") return { capture: await capture(tab.id, g) };
+  if (op === "capture") {
+    // A seat page still without seats (the window was in the background): let them draw first.
+    if (await seatsPending(tab.id).catch(() => false)) await awaitSeats(tab.id);
+    return { capture: await capture(tab.id, g) };
+  }
   if (op === "show") {
     await chrome.windows.update(tab.windowId, { focused: true, state: "normal" });
     await chrome.tabs.update(tab.id, { active: true });
