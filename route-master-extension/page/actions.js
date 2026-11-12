@@ -10,9 +10,10 @@ globalThis.__rm = {
     [...document.querySelectorAll("input")].some(e => /cc-|card|cvv|cvc|upi|vpa/i.test(about(e)));
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const cardSel = "li[class*=tupleWrapper]";
-  if (!pay && document.querySelector(cardSel) && !/[?&]step=/.test(location.search)) {
+  if (!pay && document.querySelector(cardSel) && !/[?&]step=/.test(location.search) &&
+      document.visibilityState === "visible") {
     // redBus results load as you scroll: load more cards, then go back to the top.
-    // (Only works while the browser pane is visible; hidden tabs don't load more.)
+    // (Hidden tabs never load more, so there it would only waste ~7 s.)
     for (let k = 0; k < 12; k++) {
       const all = document.querySelectorAll(cardSel);
       all[all.length - 1].scrollIntoView({ block: "end" }); await wait(600);

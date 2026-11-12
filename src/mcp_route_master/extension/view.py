@@ -34,8 +34,11 @@ from mcp_route_master.browser.pages import (
 )
 
 # A new URI whenever the page changes in a way old copies can't handle (hosts cache by URI).
-VIEW_URI = "ui://route-master/view-v1.html"
+VIEW_URI = "ui://route-master/view-v2.html"
 VIEW_MIME = "text/html;profile=mcp-app"
+# The same page in the Apps SDK form ChatGPT has always read for "openai/outputTemplate".
+SKYBRIDGE_URI = "ui://route-master/view-v2.skybridge.html"
+SKYBRIDGE_MIME = "text/html+skybridge"
 
 
 def view_html() -> str:
@@ -110,7 +113,16 @@ def _deck_view(d: DeckLayout, picks: set) -> dict[str, Any]:
         "cols": d.cols if d.positioned else None,
         # The aisle is right of this column; None when it's already an empty column of the grid.
         "aisle_after": groups[0][-1] if len(groups) == 2 and not any(a >= 0 for a in d.aisle_cols) else None,
+        "aisle_col": next(
+            (a for a in sorted(d.aisle_cols) if a >= 0), None
+        ),  # an empty column that is the aisle
         "mixed": mixed(d),
+        # e.g. "1 + 2": seats across on each side of the aisle (left + right), as on the site.
+        "layout": " + ".join(str(len(g)) for g in groups) if len(groups) == 2 else None,
+        # The map row by row, front first: each cell is a seat, "AISLE" for the gap between the two
+        # sides, or null (no seat there, e.g. under a long berth). Anything drawing its own grid from
+        # this keeps the 1-side / 2-side split.
+        "grid": _grid(d, groups),
         "seats": [
             {
                 "n": s.number,
@@ -136,6 +148,36 @@ def _deck_view(d: DeckLayout, picks: set) -> dict[str, Any]:
             for s in d.seats
         ],
     }
+
+
+def _grid(d: DeckLayout, groups: list[list[int]]) -> list[list[Any]] | None:
+    if not d.positioned:
+        return None
+    at = {(s.row, s.col): s for s in d.seats}
+    empty = {a for a in d.aisle_cols if a >= 0}
+    gap_after = groups[0][-1] if len(groups) == 2 else None
+    rows = []
+    for r in range(d.rows):
+        row: list[Any] = []
+        for c in range(d.cols):
+            seat = at.get((r, c))
+            if seat is None and c in empty:
+                row.append("AISLE")
+            elif seat is None:
+                row.append(None)
+            else:
+                row.append(
+                    {
+                        "n": seat.number,
+                        "type": _TYPE.get(seat.kind, "seat"),
+                        "s": seat.status,
+                        "p": seat.price,
+                    }
+                )
+            if c == gap_after and not empty:
+                row.append("AISLE")
+        rows.append(row)
+    return rows
 
 
 _ROW = re.compile(r"^\| (\d+) \| (.+?) \| (.+?) \| (.+?) \| (.+?) \| (.*?) \|(?: \[([^\]]+)\]\()?")

@@ -42,6 +42,14 @@ class ExtensionFailed(Exception):
     """The extension ran the command but reported an error (message comes from the extension)."""
 
 
+class ExtensionTimeout(ExtensionFailed):
+    """The extension didn't answer in time (it may still be finishing the step)."""
+
+
+class ExtensionBusy(ExtensionFailed):
+    """The command was never sent: another step for this user was still running."""
+
+
 @dataclass
 class _Conn:
     ws: WebSocket
@@ -66,22 +74,33 @@ class Hub:
             return None
         return {"email": conn.who.email, "version": conn.version}
 
-    async def send(self, sub: str, op: str, args: dict[str, Any] | None = None, timeout: float = 40) -> Any:
+    async def send(
+        self,
+        sub: str,
+        op: str,
+        args: dict[str, Any] | None = None,
+        timeout: float = 40,
+        exclusive: bool = True,
+    ) -> Any:
         """Run one command in the user's extension and return its result.
 
         `timeout` also covers waiting for an earlier command. If the connection is replaced while
-        waiting (the user's Chrome reconnected), the command goes to the new connection."""
+        waiting (the user's Chrome reconnected), the command goes to the new connection.
+        `exclusive=False` is for commands that don't touch the booking tab (reading another page in
+        a background tab): they skip the one-at-a-time lock, so several can run together."""
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout
         for _ in range(3):
             conn = self._conns.get(sub)
             if conn is None or conn.closed:
                 raise ExtensionOffline()
+            if not exclusive:
+                break
             try:
                 await asyncio.wait_for(conn.lock.acquire(), max(deadline - loop.time(), 0.01))
             except asyncio.TimeoutError:
-                raise ExtensionFailed(
-                    "Your browser is still busy with the previous step; try again."
+                raise ExtensionBusy(
+                    "Your browser is still busy with the previous step; wait a few seconds, then call browser_read."
                 ) from None
             if not conn.closed:
                 break
@@ -96,7 +115,7 @@ class Hub:
                 await conn.ws.send_json({"type": "cmd", "id": cid, "op": op, "args": args or {}})
                 msg = await asyncio.wait_for(fut, max(deadline - loop.time(), 0.01))
             except asyncio.TimeoutError:
-                raise ExtensionFailed(
+                raise ExtensionTimeout(
                     f"Your browser didn't finish '{op}' in {int(timeout)} seconds. It may still be finishing: "
                     "wait a few seconds, then call browser_read to see the page."
                 ) from None
@@ -105,7 +124,8 @@ class Hub:
             finally:
                 conn.pending.pop(cid, None)
         finally:
-            conn.lock.release()
+            if exclusive:
+                conn.lock.release()
         if not msg.get("ok"):
             raise ExtensionFailed(str(msg.get("error") or "the browser reported an error")[:300])
         return msg.get("result")

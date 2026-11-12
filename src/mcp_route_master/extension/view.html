@@ -13,9 +13,9 @@
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #1b1e24; --fg: #e8ebf1; --muted: #9aa3b5; --line: #353a45; --card: #23272f;
-      --free: #4cc17f; --free-bg: #17301f; --sold: #5d6370; --sold-bg: #2a2e36;
-      --sel: #78a6ff; --sel-bg: #1c2a47; --lady: #f07ab0; --lady-bg: #3a1f2d; --pick: #ffb23e;
+      --bg: #0f0f0f; --fg: #f2f2f2; --muted: #a3a3a3; --line: #2e2e2e; --card: #171717;
+      --free: #22c55e; --free-bg: #2a2a2a; --sold: #8a8a8a; --sold-bg: #1f1f1f;
+      --sel: #60a5fa; --sel-bg: #1e293b; --lady: #f472b6; --lady-bg: #2a1f26; --pick: #fbbf24;
     }
   }
   * { box-sizing: border-box; }
@@ -24,23 +24,26 @@
   #app { padding: 12px; }
   h2 { font-size: 16px; margin: 0 0 2px; }
   .sub { color: var(--muted); margin: 0 0 10px; }
-  .decks { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
-  .deck { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+  .decks { display: flex; flex-direction: column; gap: 14px; }
+  .deck { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px; max-width: 640px; }
   .deck h3 { font-size: 13px; margin: 0 0 6px; color: var(--muted); font-weight: 600; }
   .front { font-size: 11px; color: var(--muted); text-align: right; margin-bottom: 6px; }
-  .grid { display: grid; gap: 6px; }
+  .grid { display: grid; gap: 7px; }
   .flow { display: flex; flex-wrap: wrap; gap: 6px; max-width: 360px; }
-  .seat { min-width: 52px; min-height: 40px; border-radius: 7px; border: 2px solid var(--free);
-    background: var(--free-bg); color: var(--fg); font: inherit; font-size: 12px; padding: 3px 4px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; }
-  .seat.sleeper { min-height: 64px; border-radius: 10px 10px 7px 7px; }
+  /* Tiles like the site's own map: number on top, the price below in green; grey when sold. */
+  .seat { min-width: 64px; min-height: 48px; border-radius: 8px; border: 1px solid var(--free);
+    background: var(--free-bg); color: var(--fg); font: inherit; font-size: 13px; padding: 5px 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1.2; }
+  .seat.sleeper { min-height: 100%; }
   .seat .tag { font-size: 10px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
   .seat.sold .tag { color: var(--sold); }
   .plan { font-size: 12px; color: var(--fg); margin: -2px 0 8px; max-width: 360px; }
   .aisle { border-left: 2px dashed var(--line); margin: 0 auto; width: 0; }
+  .aisle-head { font-size: 10px; color: var(--muted); text-align: center; align-self: end; letter-spacing: .04em; }
+  .side-head { font-size: 11px; color: var(--muted); text-align: center; align-self: end; }
   .aisle-label { font-size: 10px; color: var(--muted); writing-mode: vertical-rl; text-align: center; align-self: center; }
-  .seat b { font-size: 12px; }
-  .seat small { font-size: 11px; color: var(--muted); }
+  .seat b { font-size: 13px; font-weight: 650; }
+  .seat small { font-size: 12px; color: var(--free); }
   .seat.free { cursor: pointer; }
   .seat.free:hover, .seat.free:focus-visible { outline: 2px solid var(--sel); outline-offset: 1px; }
   .seat.sold { border-color: var(--sold); background: var(--sold-bg); color: var(--sold); cursor: default; }
@@ -145,11 +148,15 @@
       const col = c => c + 1 + (gap !== null && c > gap ? 1 : 0);
       if (positioned) {
         const tracks = [];
-        for (let c = 0; c < d.cols; c++) { tracks.push("minmax(52px, auto)"); if (c === gap) tracks.push("26px"); }
+        const emptyAisle = Number.isInteger(d.aisle_col) ? d.aisle_col : null;
+        for (let c = 0; c < d.cols; c++) {
+          tracks.push(c === emptyAisle ? "minmax(40px, auto)" : "minmax(64px, 1fr)"); // (a back-row middle seat may sit there)
+          if (c === gap) tracks.push("40px");
+        }
         grid.style.gridTemplateColumns = tracks.join(" ");
-        if (gap !== null) {
+        if (gap !== null || emptyAisle !== null) {
           const a = el("div", "aisle");
-          a.style.gridColumn = String(gap + 2);
+          a.style.gridColumn = String(gap !== null ? gap + 2 : emptyAisle + 1);
           a.style.gridRow = `1 / ${d.rows + 1}`;
           grid.append(a);
         }

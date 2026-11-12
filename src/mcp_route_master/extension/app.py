@@ -17,7 +17,9 @@ exactly as before.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
+import json
 import logging
 import os
 import re
@@ -54,9 +56,22 @@ from mcp_route_master.browser.pages import (
     site_of,
 )
 from mcp_route_master.common.schema import opt, opt_list
-from mcp_route_master.extension.relay import ExtensionFailed, ExtensionOffline, Hub
+from mcp_route_master.extension.relay import (
+    ExtensionBusy,
+    ExtensionFailed,
+    ExtensionOffline,
+    ExtensionTimeout,
+    Hub,
+)
 from mcp_route_master.extension.tokens import ExtensionTokens, SignInError, verify_google_id_token
-from mcp_route_master.extension.view import VIEW_MIME, VIEW_URI, page_view, view_html
+from mcp_route_master.extension.view import (
+    SKYBRIDGE_MIME,
+    SKYBRIDGE_URI,
+    VIEW_MIME,
+    VIEW_URI,
+    page_view,
+    view_html,
+)
 from mcp_route_master.http_options import build_middleware
 from mcp_route_master.places.dates import IST, mmt_date, redbus_date
 from mcp_route_master.places.links import build_links
@@ -123,13 +138,60 @@ def _user() -> str:
     return str(sub)
 
 
-async def _send(hub: Hub, op: str, args: dict[str, Any] | None = None, timeout: float = 45) -> Any:
+class StepTimeout(ToolError):
+    """The extension didn't answer in time; the page may still be loading."""
+
+
+PEEK_BUDGET = 30  # seconds for reading the other site / tomorrow's page in background tabs
+RETRY_WAIT = 3  # seconds to give a slow site before reading the page again
+
+
+async def _send(
+    hub: Hub, op: str, args: dict[str, Any] | None = None, timeout: float = 45, exclusive: bool = True
+) -> Any:
     try:
-        return await hub.send(_user(), op, args, timeout)
+        return await hub.send(_user(), op, args, timeout, exclusive=exclusive)
     except ExtensionOffline:
         raise ToolError(OFFLINE) from None
+    except ExtensionTimeout as exc:
+        raise StepTimeout(f"The browser step didn't work: {exc}") from None
+    except ExtensionBusy as exc:  # never sent, so there's nothing to recover: just say so
+        raise ToolError(str(exc)) from None
     except ExtensionFailed as exc:
+        if "took too long" in str(exc):  # the extension's own step limit: the page may still be loading
+            raise StepTimeout(f"The browser step didn't work: {exc}") from None
         raise ToolError(f"The browser step didn't work: {exc}") from None
+
+
+async def _recapture(hub: Hub, tries: int = 2, timeout: float = 40) -> str | None:
+    """After a timeout, don't give up: wait for the site, then read the page again (the step has
+    often finished by then). None if the browser still doesn't answer; other errors pass through."""
+    for _ in range(tries):
+        await asyncio.sleep(RETRY_WAIT)
+        try:
+            return (await _send(hub, "capture", timeout=timeout))["capture"]
+        except StepTimeout:
+            continue
+    return None
+
+
+def _same_trip_page(capture: str, url: str) -> bool:
+    """The re-read page is the results page that was asked for (not the previous page)."""
+    try:
+        c = load_capture(capture)
+    except CaptureError:
+        return False
+    site = site_of(c.url)
+    if site is None or site != site_of(url) or page_kind(c, site) != "results":
+        return False
+    want = route_of(load_capture(json.dumps({"v": 1, "url": url, "text": "buses found"})), site)
+    return route_of(c, site).travel_date == want.travel_date
+
+
+SLOW = (
+    "The site is very slow right now. Wait a few seconds, then call browser_read to see the page; don't "
+    "send the user to the site or search the web instead."
+)
 
 
 log = logging.getLogger(__name__)
@@ -138,7 +200,7 @@ log = logging.getLogger(__name__)
 _VIEW = {
     "meta": {
         "ui": AppConfig(resource_uri=VIEW_URI).model_dump(by_alias=True, exclude_none=True),
-        "openai/outputTemplate": VIEW_URI,
+        "openai/outputTemplate": SKYBRIDGE_URI,
     }
 }
 
@@ -206,6 +268,16 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
     def route_master_view() -> str:
         return view_html()
 
+    @app.resource(SKYBRIDGE_URI, mime_type=SKYBRIDGE_MIME, name="route-master view (ChatGPT)")
+    def route_master_view_chatgpt() -> str:
+        return view_html()
+
+    @app.resource(
+        "ui://route-master/view-v1.html", mime_type=VIEW_MIME, name="route-master view (old address)"
+    )
+    def route_master_view_v1() -> str:  # hosts that cached the v0.9-v0.10 tool list still ask for it
+        return view_html()
+
     tool: Callable[..., Any] = partial(base._tool, server=app)
 
     @tool(
@@ -239,17 +311,36 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         parts = urlsplit(url.strip())
         if parts.scheme != "https" or site_of(url.strip()) is None:
             raise ToolError("Only https redbus.in and makemytrip.com pages can be opened.")
-        out = await _send(hub, "open", {"url": url.strip()}, timeout=75)
+        try:
+            out = await _send(hub, "open", {"url": url.strip()}, timeout=75)
+        except StepTimeout:
+            cap = await _recapture(hub, tries=1, timeout=25)
+            if cap is None or not _same_trip_page(cap, url.strip()):
+                raise ToolError(SLOW) from None
+            out = {"capture": cap}
         read = {"bus_type": bus_type, "around_time": around_time, "sort_by": sort_by}
         text = await _explain(out["capture"], **read)
-        # Every option: also read the other site's page for this trip (background tab) and rank all
-        # buses together; the Book column says on which site each bus is.
+        # Every option: the other site's page for this trip, and tomorrow's when few buses are left
+        # today. Both are read at the same time in background tabs, within PEEK_BUDGET; whatever
+        # doesn't come back in time is left out (the booking tab is never touched).
         other = _other_site_link(out["capture"])
-        if other is not None:
+        nxt = _next_day_if_few_left(out["capture"])
+        urls = [u for u in (other, nxt) if u]
+        got: dict[str, str] = {}
+        if urls:
+            answers = await asyncio.gather(
+                *(_send(hub, "peek", {"url": u}, timeout=PEEK_BUDGET, exclusive=False) for u in urls),
+                return_exceptions=True,
+            )
+            got = {
+                u: a["capture"]
+                for u, a in zip(urls, answers, strict=True)
+                if isinstance(a, dict) and "capture" in a
+            }
+        if other in got:
             try:
-                peek = await _send(hub, "peek", {"url": other}, timeout=40)
                 merged = await base.read_results_pages(
-                    [out["capture"], peek["capture"]], bus_type, around_time, sort_by
+                    [out["capture"], got[other]], bus_type, around_time, sort_by
                 )
                 if merged:
                     here = _site(out["capture"])
@@ -257,25 +348,15 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
                         f"{merged}\n\n_Buses from redBus and MakeMyTrip. The booking window shows {here}; "
                         f"to book a bus listed on the other site, first call browser_open with {other}._"
                     )
-            except ToolError:
-                pass  # the other site didn't load: this site's list is enough
             except Exception:  # the merged list is extra; never lose this site's answer over it
                 log.warning("merging the other site's buses failed", exc_info=True)
-        nxt = _next_day_if_few_left(out["capture"])
-        if nxt is None:
-            return _with_view(text, out["capture"])
-        # Few buses still to leave today: read tomorrow's page in a background tab, so the user gets
-        # enough choices. The booking tab stays on today's page.
-        try:
-            more = await _send(hub, "peek", {"url": nxt}, timeout=40)
-        except ToolError:
-            return _with_view(text, out["capture"])  # an older extension, or the page didn't load
-        tomorrow = await _explain(more["capture"], **read)
-        both = (
-            f"{text}\n\n---\n**Only a few buses are still to leave today, so here are tomorrow's too.** "
-            f"To book one of these, call browser_open with {nxt} first.\n\n{tomorrow}"
-        )
-        return _with_view(both, out["capture"])
+        if nxt in got:
+            tomorrow = await _explain(got[nxt], **read)
+            text = (
+                f"{text}\n\n---\n**Only a few buses are still to leave today, so here are tomorrow's too.** "
+                f"To book one of these, call browser_open with {nxt} first.\n\n{tomorrow}"
+            )
+        return _with_view(text, out["capture"])
 
     @tool(
         annotations={**_BROWSER, "readOnlyHint": True, "title": "Read the page in my browser"},
@@ -304,7 +385,13 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         approved_fare: opt(float, description="Payment page: the fare the user confirmed.", ge=0) = None,
     ) -> Any:
         """Read the booking page open in the user's Chrome again (buses, seats, stops, form or payment)."""
-        out = await _send(hub, "capture")
+        try:
+            out = await _send(hub, "capture")
+        except StepTimeout:
+            cap = await _recapture(hub)
+            if cap is None:
+                raise ToolError(SLOW) from None
+            out = {"capture": cap}
         text = await _explain(
             out["capture"],
             bus_type=bus_type,
@@ -369,7 +456,12 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
     ) -> Any:
         """Do one booking step in the user's Chrome (open a bus, pick seats or stops, decline extras,
         continue) and return what the page shows afterwards."""
-        now = (await _send(hub, "capture"))["capture"]
+        try:
+            now = (await _send(hub, "capture"))["capture"]
+        except StepTimeout:
+            now = await _recapture(hub)  # the previous step was still finishing
+            if now is None:
+                raise ToolError(SLOW) from None
         site = _site(now)
         if site is None:
             raise ToolError("The route-master tab isn't on redBus or MakeMyTrip; use browser_open first.")
@@ -422,9 +514,22 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             if not boarding or not dropping:
                 raise ToolError("choose_points needs both the boarding and the drop point.")
             args.update(boarding=boarding, dropping=dropping)
-        out = await _send(
-            hub, "action", {"name": action, "args": args, "click": action in _CLICKS}, timeout=60
-        )
+        try:
+            out = await _send(
+                hub, "action", {"name": action, "args": args, "click": action in _CLICKS}, timeout=60
+            )
+        except StepTimeout:
+            # The click may well have worked and the site is just slow: wait, then read the page.
+            cap = await _recapture(hub)
+            if cap is None:
+                raise ToolError(SLOW) from None
+            out = {"result": {}, "click": {"clicked": "unknown", "timed_out": True}, "capture": cap}
+            slow_note = (
+                f"_The '{action}' step was slow; this is the page now. Check it shows what was asked "
+                "before repeating the step (repeating a seat click would undo it)._"
+            )
+        else:
+            slow_note = ""
         result = out.get("result")
         if isinstance(result, dict) and result.get("error"):
             # Say plainly that the step didn't happen, so the AI doesn't guess why.
@@ -432,7 +537,7 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
                 f"The '{action}' step didn't work: {result['error']}. The page wasn't changed."
                 + _outdated(hub)
             )
-        note = _action_note(result)
+        note = " ".join(x for x in (_action_note(result), slow_note) if x)
         after = out["capture"]
         if action == "open_bus" and not _seat_map_open(after, site):
             # Don't hand back the unchanged bus list: the AI then guesses and sends the user away.

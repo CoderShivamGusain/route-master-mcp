@@ -22,6 +22,7 @@ from websockets.exceptions import ConnectionClosed
 
 from mcp_route_master.extension import app as ext_app
 from mcp_route_master.extension.app import Settings, build_combined_app
+from mcp_route_master.extension.relay import ExtensionTimeout, Hub
 from mcp_route_master.extension.tokens import ExtensionTokens, Identity
 from mcp_route_master.places.dates import IST, mmt_date, redbus_date
 
@@ -368,16 +369,18 @@ async def test_open_bus_says_so_when_no_seat_map_opens(server):
 
 async def test_seat_map_comes_with_a_drawable_view(server):
     """ChatGPT shows the text seat map poorly; apps that support MCP Apps draw the real map."""
-    from mcp_route_master.extension.view import VIEW_MIME, VIEW_URI
+    from mcp_route_master.extension.view import SKYBRIDGE_MIME, SKYBRIDGE_URI, VIEW_MIME, VIEW_URI
 
     async with extension(server, RAM), app_client(server) as c:
         tools = {t.name: t for t in await c.list_tools()}
         for name in ("browser_open", "browser_read", "browser_action"):
             meta = tools[name].meta or {}
-            assert meta["ui"]["resourceUri"] == VIEW_URI and meta["openai/outputTemplate"] == VIEW_URI
+            assert meta["ui"]["resourceUri"] == VIEW_URI and meta["openai/outputTemplate"] == SKYBRIDGE_URI
         assert "ui" not in (tools["browser_fill"].meta or {})
         page = (await c.read_resource(VIEW_URI))[0]
         assert page.mime_type == VIEW_MIME and "<script>" in page.text
+        alias = (await c.read_resource(SKYBRIDGE_URI))[0]
+        assert alias.mime_type == SKYBRIDGE_MIME and alias.text == page.text
         r = await c.call_tool("browser_open", {"url": "https://www.redbus.in/bus-tickets/delhi-to-manali"})
         assert r.structured_content["kind"] == "buses" and r.structured_content["sections"][0]["rows"]
         r = await c.call_tool(
@@ -453,3 +456,110 @@ async def test_an_older_extension_is_pointed_out(server):
     async with extension(server, RAM), app_client(server) as c:  # "test": not a version, no hint
         err, text = await call(c, "browser_status")
     assert "reload" not in text
+
+
+def _slow(monkeypatch, ops):
+    """Make these extension commands run but answer too late, like a slow site (live, 12 Nov 2026)."""
+    real = Hub.send
+
+    async def send(self, sub, op, args=None, timeout=40, exclusive=True):
+        result = await real(self, sub, op, args, timeout, exclusive)
+        if op in ops:
+            raise ExtensionTimeout(f"Your browser didn't finish '{op}' in {int(timeout)} seconds.")
+        return result
+
+    monkeypatch.setattr(Hub, "send", send)
+    monkeypatch.setattr(ext_app, "RETRY_WAIT", 0)
+
+
+async def test_slow_seat_map_is_waited_for_not_given_up(server, monkeypatch):
+    _slow(monkeypatch, {"action"})
+    async with extension(server, RAM), app_client(server) as c:
+        err, text = await call(
+            c,
+            "browser_action",
+            {"action": "open_bus", "operator": "Tiwari and Brothers", "departure": "17:00"},
+        )
+    assert not err and "## Seats: Tiwari and Brothers, 17:00" in text
+
+
+async def test_slow_page_open_and_slow_other_site_still_give_the_list(server, monkeypatch):
+    _slow(monkeypatch, {"open", "peek"})
+    async with extension(server, RAM), app_client(server) as c:
+        err, text = await call(c, "browser_open", {"url": REDBUS_RESULTS["url"]})
+    assert not err and "ReoBus Pro" in text and "Buses from redBus and MakeMyTrip" not in text
+
+
+async def test_background_reads_skip_the_one_at_a_time_lock(server, monkeypatch):
+    seen = []
+    real = Hub.send
+
+    async def send(self, sub, op, args=None, timeout=40, exclusive=True):
+        seen.append((op, exclusive))
+        return await real(self, sub, op, args, timeout, exclusive)
+
+    monkeypatch.setattr(Hub, "send", send)
+    async with extension(server, RAM), app_client(server) as c:
+        await call(c, "browser_open", {"url": REDBUS_RESULTS["url"]})
+    assert (
+        ("open", True) in seen
+        and all(not ex for op, ex in seen if op == "peek")
+        and any(op == "peek" for op, _ in seen)
+    )
+
+
+async def test_extension_step_limit_is_treated_as_slow_not_failed(server, monkeypatch):
+    from mcp_route_master.extension.relay import ExtensionFailed
+
+    real = Hub.send
+
+    async def send(self, sub, op, args=None, timeout=40, exclusive=True):
+        result = await real(self, sub, op, args, timeout, exclusive)
+        if op == "action":
+            raise ExtensionFailed("This step took too long; the page may still be loading.")
+        return result
+
+    monkeypatch.setattr(Hub, "send", send)
+    monkeypatch.setattr(ext_app, "RETRY_WAIT", 0)
+    async with extension(server, RAM), app_client(server) as c:
+        err, text = await call(
+            c,
+            "browser_action",
+            {"action": "open_bus", "operator": "Tiwari and Brothers", "departure": "17:00"},
+        )
+    assert not err and "## Seats: Tiwari and Brothers" in text
+
+
+async def test_busy_browser_is_not_mistaken_for_a_slow_page(server, monkeypatch):
+    """Review: a step that was never sent (another one still running) must not 'recover' by
+    returning whatever page happens to be open."""
+    from mcp_route_master.extension.relay import ExtensionBusy
+
+    real = Hub.send
+
+    async def send(self, sub, op, args=None, timeout=40, exclusive=True):
+        if op == "open":
+            raise ExtensionBusy(
+                "Your browser is still busy with the previous step; wait a few seconds, then call browser_read."
+            )
+        return await real(self, sub, op, args, timeout, exclusive)
+
+    monkeypatch.setattr(Hub, "send", send)
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        err, text = await call(c, "browser_open", {"url": REDBUS_RESULTS["url"]})
+    assert err and "still busy" in text and not any(op == "capture" for op, _ in fake.calls)
+
+
+async def test_slow_open_only_accepts_the_page_that_was_asked_for(server, monkeypatch):
+    _slow(monkeypatch, {"open"})
+    other_day = REDBUS_RESULTS["url"].replace(redbus_date(TRAVEL), redbus_date(TRAVEL + timedelta(days=3)))
+    async with extension(server, RAM), app_client(server) as c:
+        err, text = await call(c, "browser_open", {"url": other_day})  # the tab still shows TRAVEL's page
+    assert err and "very slow" in text
+
+
+async def test_slow_seat_click_says_check_before_repeating(server, monkeypatch):
+    _slow(monkeypatch, {"action"})
+    async with extension(server, RAM, page="seats"), app_client(server) as c:
+        err, text = await call(c, "browser_action", {"action": "select_seats", "seats": ["4L"]})
+    assert not err and "was slow" in text and "would undo it" in text

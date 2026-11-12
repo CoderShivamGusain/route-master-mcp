@@ -18,6 +18,12 @@ let pingTimer = null;
 let backoff = 1000;
 let queue = Promise.resolve();
 let status = "signed-out"; // signed-out | connecting | connected | offline
+const STEP_LIMIT = 55000; // the server waits up to 60-75 s per step
+const HARD_CAP = 90000; // after this a stuck step is abandoned and stops before its next click
+let stepNo = 0; // booking-tab steps, in order
+let current = 0; // the step allowed to act on the tab now
+const alive = g => g == null || g === current;
+const stopIfStale = g => { if (!alive(g)) throw new Error("stopped: a newer step took over"); };
 
 // ------------------------------------------------------------------ connection
 async function connect({ manual = false } = {}) {
@@ -53,12 +59,24 @@ async function onMessage(sock, data) {
     // A message every 20 s keeps both the connection and this service worker alive.
     pingTimer = setInterval(() => sock.readyState === WebSocket.OPEN && sock.send('{"type":"ping"}'), 20000);
   } else if (msg.type === "cmd") {
-    // One command at a time: they all drive the same tab (a late one waits for the previous).
-    queue = queue.then(async () => {
+    const answer = async g => {
+      const work = run(msg.op, msg.args || {}, g);
       let reply;
-      try { reply = { type: "result", id: msg.id, ok: true, result: await run(msg.op, msg.args || {}) }; }
+      try { reply = { type: "result", id: msg.id, ok: true, result: await withTimeout(work, STEP_LIMIT, "This step took too long; the page may still be loading.") }; }
       catch (e) { reply = { type: "result", id: msg.id, ok: false, error: String(e && e.message || e) }; }
       if (sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(reply));
+      return work;
+    };
+    // Reading another page (peek) uses its own background tab, so it runs alongside. Everything else
+    // drives the booking tab one at a time: the server gets an answer within STEP_LIMIT, but the next
+    // step still waits for this one to really finish (up to HARD_CAP), so two never act on the tab at
+    // once; a step past HARD_CAP is abandoned and stops before its next click.
+    if (msg.op === "peek") answer(null).catch(() => {});
+    else queue = queue.then(async () => {
+      const g = ++stepNo;
+      current = g;
+      const work = answer(g);
+      await withTimeout(work, HARD_CAP, "abandoned").catch(() => {});
     });
   }
 }
@@ -151,16 +169,18 @@ async function settle(tabId) {
   await sleep(1500);
 }
 
-async function exec(tabId, func, args = []) {
+async function exec(tabId, func, args = [], g = null) {
+  stopIfStale(g); // an abandoned step never touches the page again
   await chrome.scripting.executeScript({ target: { tabId }, files: ["page/actions.js", "page/forms.js"] });
+  stopIfStale(g);
   const [res] = await chrome.scripting.executeScript({ target: { tabId }, func, args });
   return res && res.result;
 }
 
-async function capture(tabId) {
+async function capture(tabId, g = null) {
   const tab = await chrome.tabs.get(tabId);
   if (!allowed(tab.url)) throw new Error("The route-master tab isn't on redBus or MakeMyTrip.");
-  return exec(tabId, () => globalThis.__rm.capture({}));
+  return exec(tabId, () => globalThis.__rm.capture({}), [], g);
 }
 
 // Click the element the page script marked. A real (trusted) mouse click when the tab is visible,
@@ -181,17 +201,18 @@ function scriptClick() {
   return true;
 }
 
-async function realClick(tabId, { trusted = true } = {}) {
+async function realClick(tabId, { trusted = true, g = null } = {}) {
+  stopIfStale(g);
   const point = await exec(tabId, () => {
     const el = document.querySelector("[data-rm-target]");
     if (!el) return null;
     el.scrollIntoView({ block: "center" });
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2, hidden: document.visibilityState !== "visible" };
-  });
+  }, [], g);
   if (!point) throw new Error("Nothing to click on this page.");
   const byScript = async () => {
-    if (!(await exec(tabId, scriptClick))) throw new Error("Nothing to click on this page.");
+    if (!(await exec(tabId, scriptClick, [], g))) throw new Error("Nothing to click on this page.");
     return "script";
   };
   if (!trusted || point.hidden) return byScript();
@@ -215,6 +236,7 @@ async function realClick(tabId, { trusted = true } = {}) {
       await detach();
       return byScript(); // nothing was pressed yet, so a script click can't double up
     }
+    stopIfStale(g);
     await send("mousePressed");
     await send("mouseReleased");
     return "real";
@@ -242,20 +264,21 @@ async function waitFor(check, ms) {
   return false;
 }
 
-async function openBus(tabId) {
+async function openBus(tabId, g) {
   const start = Date.now();
-  const how = await realClick(tabId);
+  const how = await realClick(tabId, { g });
   if (await waitFor(() => seatMapOpen(tabId), 6000)) return { clicked: how, seat_map: true };
   // Retry only with time to spare: the whole step must end well inside the server's 60 s.
   if (how === "real" && Date.now() - start < 25000 && await safeToRetry(tabId).catch(() => false)) {
-    try { await realClick(tabId, { trusted: false }); } catch { /* the button went away: check once more */ }
+    stopIfStale(g);
+    try { await realClick(tabId, { trusted: false, g }); } catch { /* the button went away: check once more */ }
     if (await waitFor(() => seatMapOpen(tabId), 6000)) return { clicked: "real+script", seat_map: true };
     return { clicked: "real+script", seat_map: false };
   }
   return { clicked: how, seat_map: false };
 }
 
-async function run(op, args) {
+async function run(op, args, g = null) {
   if (op === "open") {
     if (!allowed(args.url)) throw new Error("Only https redBus and MakeMyTrip pages can be opened.");
     const tab = await getTab(true);
@@ -263,24 +286,30 @@ async function run(op, args) {
     await sleep(500);
     await waitLoad(tab.id, 30000);
     await sleep(2500); // the sites render the list after the page loads
-    return { capture: await capture(tab.id) };
+    return { capture: await capture(tab.id, g) };
   }
   if (op === "peek") {
     // Read another page (e.g. tomorrow's buses) in a background tab; the booking tab stays put.
     if (!allowed(args.url)) throw new Error("Only https redBus and MakeMyTrip pages can be opened.");
-    const base = await getTab(true);
+    // Use the booking window when there is one; never create it here (a peek runs alongside other
+    // steps), so a peek without one gets its own throwaway window.
+    let base = null;
+    try { base = await getTab(false); } catch { /* no booking window */ }
+    const own = base ? null : await chrome.windows.create({ url: "about:blank", focused: false, state: "minimized" });
+    if (own) base = own.tabs[0];
     const t = await chrome.tabs.create({ windowId: base.windowId, url: args.url, active: false });
     try {
       await sleep(500);
-      await waitLoad(t.id, 20000); // well inside the server's 40 s for a peek
+      await waitLoad(t.id, 20000); // inside the server's 30 s for a peek
       await sleep(2500);
       return { capture: await capture(t.id) };
     } finally {
       chrome.tabs.remove(t.id).catch(() => {});
+      if (own) chrome.windows.remove(own.id).catch(() => {});
     }
   }
   const tab = await getTab(false);
-  if (op === "capture") return { capture: await capture(tab.id) };
+  if (op === "capture") return { capture: await capture(tab.id, g) };
   if (op === "show") {
     await chrome.windows.update(tab.windowId, { focused: true, state: "normal" });
     await chrome.tabs.update(tab.id, { active: true });
@@ -292,28 +321,28 @@ async function run(op, args) {
     const name = String(args.name);
     if (!["select_seats", "choose_points", "decline_addons", "open_bus", "continue"].includes(name))
       throw new Error("Unknown step " + name);
-    const raw = await exec(tab.id, (n, a) => globalThis.__rm[n](a), [name, args.args || {}]);
+    const raw = await exec(tab.id, (n, a) => globalThis.__rm[n](a), [name, args.args || {}], g);
     const result = typeof raw === "string" ? JSON.parse(raw) : raw;
     let click = null;
     if (args.click && result && result.marked) {
-      click = name === "open_bus" ? await openBus(tab.id) : { clicked: await realClick(tab.id) };
+      click = name === "open_bus" ? await openBus(tab.id, g) : { clicked: await realClick(tab.id, { g }) };
       await settle(tab.id);
     } else await sleep(800);
-    return { result, click, capture: await capture(tab.id) };
+    return { result, click, capture: await capture(tab.id, g) };
   }
   if (op === "fill") {
-    const result = await exec(tab.id, f => globalThis.__rmForms.fill(f), [args.fields || []]);
+    const result = await exec(tab.id, f => globalThis.__rmForms.fill(f), [args.fields || []], g);
     if (result && result.error) throw new Error(result.error);
     await sleep(600);
-    return { ...result, capture: await capture(tab.id) };
+    return { ...result, capture: await capture(tab.id, g) };
   }
   if (op === "choose") {
     const result = await exec(tab.id, (t, n) => globalThis.__rmForms.choose(t, n),
-      [String(args.text || ""), Number(args.occurrence) || 1]);
+      [String(args.text || ""), Number(args.occurrence) || 1], g);
     if (!result || result.error) throw new Error((result && result.error) || "couldn't choose that option");
-    await realClick(tab.id);
+    await realClick(tab.id, { g });
     await sleep(800);
-    return { result, capture: await capture(tab.id) };
+    return { result, capture: await capture(tab.id, g) };
   }
   throw new Error("Unknown command " + op);
 }

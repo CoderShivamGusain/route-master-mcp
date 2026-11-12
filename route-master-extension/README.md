@@ -109,9 +109,11 @@ Hosting your own server: change `SERVER_URL` in `config.js` and the server host 
 - `background.js` (service worker): signs in with Google (`chrome.identity.launchWebAuthFlow`,
   ID token with a nonce), trades the ID token at `/ext/token` for a route-master extension token
   (30 days), and keeps a WebSocket to `/ext/ws`. It pings every 20 seconds, which also keeps the
-  service worker alive, and a 1-minute alarm reconnects. It runs commands one at a time.
-- Commands: `open`, `capture`, `peek` (read another page, e.g. tomorrow's buses, in a background
-  tab), `action` (select_seats, choose_points, decline_addons, open_bus, continue), `fill`, `choose`,
+  service worker alive, and a 1-minute alarm reconnects. It runs booking-tab commands one at a time,
+  each with a 55-second limit, so a slow page never holds up the next step (the server then waits and
+  reads the page again instead of giving up).
+- Commands: `open`, `capture`, `peek` (read another page, e.g. the other site or tomorrow's buses, in
+  its own background tab; peeks run alongside each other, outside the queue), `action` (select_seats, choose_points, decline_addons, open_bus, continue), `fill`, `choose`,
   `show`. After every step it captures the page; the server turns that
   into the answer (ranked buses, seat map, stops, form check, or the payment hand-over).
 - `page/actions.js` is **generated** from the server's `src/mcp_route_master/browser/scripts.py`

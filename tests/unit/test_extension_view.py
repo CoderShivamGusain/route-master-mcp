@@ -84,3 +84,12 @@ async def test_mixed_deck_says_which_side_is_single_and_what_is_a_berth():
     seats = {s["n"]: s for s in lower["seats"]}
     assert seats["L1"]["type"] == "sleeper berth" and seats["L1"]["span"] == 2 and seats["L1"]["single"]
     assert seats["L7"]["type"] == "seat" and seats["L7"]["span"] == 1 and seats["L7"]["side"] == "right"
+    # Row by row with the aisle marked, so an app drawing its own grid keeps the 1 + 2 split.
+    assert lower["layout"] == "1 + 2"
+    assert [c if isinstance(c, str) or c is None else c["n"] for c in lower["grid"][0]] == [
+        "L1",
+        "AISLE",
+        "L2",
+        "L3",
+    ]
+    assert lower["grid"][1][0] is None and lower["grid"][1][1] == "AISLE"

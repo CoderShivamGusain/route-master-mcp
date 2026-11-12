@@ -879,7 +879,9 @@ async def explain_seat_map(
         )
     )
     out.append(
-        "_For the assistant: show these seat tables exactly as they are (each free seat has its price)._"
+        "_For the assistant: show these seat tables exactly as they are (each free seat has its price). If you "
+        "draw the map yourself, keep the empty aisle column between the two sides, so the user sees which side "
+        "has single and which has double seats._"
     )
     prefs = list(preferences or [])
     if wanted > 1 and "together" not in prefs:
