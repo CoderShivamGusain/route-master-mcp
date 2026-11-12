@@ -591,6 +591,12 @@ def parse_redbus_form(c: Capture) -> FormRead:
     return f
 
 
+_MMT_ADD = re.compile(r"Add (.+?) at ₹")
+_MMT_NO = re.compile(
+    r"No,?\s*I\s*(?:don.?t|do not)\s+(?:need|want)|No,?\s*I.?ll (?:take the )?risk|Skip", re.I
+)
+
+
 def parse_mmt_form(c: Capture) -> FormRead:
     f = FormRead()
     t = c.text
@@ -627,10 +633,25 @@ def parse_mmt_form(c: Capture) -> FormRead:
     mobile, email = _input(c, ids=("mobileNumber",)), _input(c, ids=("contactEmail",))
     f.mobile = str(mobile[0]["v"]) if mobile else ""
     f.email = str(email[0]["v"]) if email else ""
-    if c.choices:
-        yes = any(x.get("on") for x in c.choices if x.get("t", "").startswith("Add Free Cancellation"))
-        no = any(x.get("on") for x in c.choices if x.get("t", "").startswith("No I"))
-        f.add_ons["Free Cancellation"] = True if yes else False if no else None
+    # Paid extras offered as "Add <name> at ₹X" / "No, I don't need it" pairs. The name changes
+    # (Free Cancellation; TripAssured since Nov 2026), so it's read from the "Add" option.
+    # Anything offered that can't be read stays unanswered, so the summary asks before paying.
+    name = None
+    for x in c.choices:
+        label = x.get("t", "")
+        if m := _MMT_ADD.match(label):
+            name = m.group(1).strip()
+            f.add_ons.setdefault(name, None)
+            if x.get("on"):
+                f.add_ons[name] = True
+        elif _MMT_NO.match(label):
+            if name is None:  # a "No" without a readable "Add" before it
+                f.add_ons.setdefault("Extra offered on the page", None)
+            elif x.get("on") and f.add_ons.get(name) is not True:
+                f.add_ons[name] = False
+            name = None
+    if c.choices and not f.add_ons:
+        f.add_ons["Extra offered on the page"] = None
     insurance = [
         i
         for i in c.inputs

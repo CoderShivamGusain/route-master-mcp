@@ -147,7 +147,31 @@ def _review_cases():
         + RB_CARD.format(n="ganesh", dep="21:00", arr="03:00", op="Shri Ganesh Travels")
         + "</ul>"
     )
+    trip_assured = (
+        '<div class="bottomContainer"><div onclick="document.body.dataset.added=1"><span>Add TripAssured at '
+        '₹21/Person</span></div><div onclick="document.body.dataset.declined=1"><span class="appendLeft10">'
+        "No,I don't need it</span></div></div>"
+    )
+    radios = (
+        '<div class="bottomContainer"><div><input type="radio" name="ta" onclick="document.body.dataset.added=1">'
+        '<span>Add TripAssured at ₹21/Person</span></div><div><input type="radio" name="ta" '
+        'onclick="document.body.dataset.declined=1"><span>No,I don\'t need it</span></div></div>'
+    )
     return {
+        "decline_with_radios": {
+            "html": radios,
+            "url": "https://www.makemytrip.com/bus/review?selectedSeats=1A",
+            "js": "(async () => { const r = JSON.parse(await "
+            + ps.DECLINE_ADDONS_JS
+            + "); return {...r, added: document.body.dataset.added || null, declined_on: document.body.dataset.declined || null}; })()",
+        },
+        "decline_trip_assured": {
+            "html": trip_assured,
+            "url": "https://www.makemytrip.com/bus/review?selectedSeats=1A",
+            "js": "(async () => { const r = JSON.parse(await "
+            + ps.DECLINE_ADDONS_JS
+            + "); return {...r, added: document.body.dataset.added || null, declined_on: document.body.dataset.declined || null}; })()",
+        },
         "open_renamed": {
             "html": renamed,
             "url": rb_results,
@@ -235,3 +259,14 @@ def test_open_bus_never_guesses_but_names_the_buses_at_that_time(results):
     r = results["open_mmt_short_name"]
     assert r["marked"] is None and "'Beta Travels'" in r["result"]["error"]
     assert results["open_other_shri"]["marked"] is None
+
+
+def test_decline_finds_makemytrips_renamed_extra(results):
+    """Live, 12 Nov 2026: "TripAssured" with "No,I don't need it" (no space after the comma)."""
+    r = results["decline_trip_assured"]["result"]
+    assert r["declined"] == ["No,I don't need it"] and r["declined_on"] == "1" and r["added"] is None
+
+
+def test_decline_never_presses_the_add_options_radio(results):
+    r = results["decline_with_radios"]["result"]
+    assert r["declined_on"] == "1" and r["added"] is None

@@ -58,6 +58,7 @@ from mcp_route_master.extension.tokens import ExtensionTokens, SignInError, veri
 from mcp_route_master.extension.view import VIEW_MIME, VIEW_URI, page_view, view_html
 from mcp_route_master.http_options import build_middleware
 from mcp_route_master.places.dates import IST, mmt_date, redbus_date
+from mcp_route_master.places.links import build_links
 from mcp_route_master.trust.bus_types import BusPreference
 
 APP_PATH = "/app/mcp"
@@ -69,7 +70,8 @@ user's own Chrome, through the route-master extension. The user pays on that sit
 
 Flow (one tool call per step; every browser_* tool returns what the page now shows):
 1. plan_bus_trip for the route and date (YYYY-MM-DD, India time). Then browser_open with its
-   MakeMyTrip link (it lists every bus; redBus shows only about 10 in a background window); pass around_time="HH:MM" when the user gives a time ("around 9 am" → 09:00)
+   MakeMyTrip link (it lists every bus); it also reads redBus for the same trip and ranks both together
+   (the Book column says where each bus is: open that site's link before open_bus for a bus there); pass around_time="HH:MM" when the user gives a time ("around 9 am" → 09:00)
    and bus_type when they ask for one: you get the ranked buses, those near their time first.
 2. User picks a bus → browser_action(action="open_bus", operator=..., departure=...): the seat map.
    Use the operator and HH:MM time exactly as in the table. Never send the user to the site
@@ -213,13 +215,32 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         out = await _send(hub, "open", {"url": url.strip()}, timeout=75)
         read = {"bus_type": bus_type, "around_time": around_time, "sort_by": sort_by}
         text = await _explain(out["capture"], **read)
+        # Every option: also read the other site's page for this trip (background tab) and rank all
+        # buses together; the Book column says on which site each bus is.
+        other = _other_site_link(out["capture"])
+        if other is not None:
+            try:
+                peek = await _send(hub, "peek", {"url": other}, timeout=40)
+                merged = await base.read_results_pages(
+                    [out["capture"], peek["capture"]], bus_type, around_time, sort_by
+                )
+                if merged:
+                    here = _site(out["capture"])
+                    text = (
+                        f"{merged}\n\n_Buses from redBus and MakeMyTrip. The booking window shows {here}; "
+                        f"to book a bus listed on the other site, first call browser_open with {other}._"
+                    )
+            except ToolError:
+                pass  # the other site didn't load: this site's list is enough
+            except Exception:  # the merged list is extra; never lose this site's answer over it
+                log.warning("merging the other site's buses failed", exc_info=True)
         nxt = _next_day_if_few_left(out["capture"])
         if nxt is None:
             return _with_view(text, out["capture"])
         # Few buses still to leave today: read tomorrow's page in a background tab, so the user gets
         # enough choices. The booking tab stays on today's page.
         try:
-            more = await _send(hub, "peek", {"url": nxt}, timeout=60)
+            more = await _send(hub, "peek", {"url": nxt}, timeout=40)
         except ToolError:
             return _with_view(text, out["capture"])  # an older extension, or the page didn't load
         tomorrow = await _explain(more["capture"], **read)
@@ -451,6 +472,29 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
 
 
 FEW_LEFT = 10  # fewer buses than this still to leave today → also show tomorrow's
+
+
+def _other_site_link(capture: str) -> str | None:
+    """The other site's dated results link for the same trip (redBus <-> MakeMyTrip), if it has one."""
+    try:
+        c = load_capture(capture)
+    except CaptureError:
+        return None
+    site = site_of(c.url)
+    if site is None or page_kind(c, site) != "results":
+        return None
+    route = route_of(c, site)
+    if not route.origin or not route.destination or not route.travel_date:
+        return None
+    r = base.get_resolver()
+    ro, rd = r.resolve(route.origin), r.resolve(route.destination)
+    # Only exact matches: a guessed town could put another route's buses in the list.
+    if not all(x.ok and not x.fuzzy and not x.assumed for x in (ro, rd)):
+        return None
+    o, d = ro.hub, rd.hub
+    want = "MakeMyTrip" if site == "redBus" else "redBus"
+    link = next((x for x in build_links(r, o, d, route.travel_date) if x.platform == want), None)
+    return link.url if link is not None and link.kind == "dated_search" else None
 
 
 def _next_day_if_few_left(capture: str) -> str | None:

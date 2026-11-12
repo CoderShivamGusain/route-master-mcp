@@ -13,11 +13,15 @@ from importlib.resources import files
 from typing import Any
 
 from mcp_route_master.booking.seats import (
+    DeckLayout,
     Seat,
+    deck_plan,
     layout,
+    mixed,
     normalise_kind,
     normalise_reserved,
     normalise_status,
+    sides,
     suggest,
 )
 from mcp_route_master.browser.pages import (
@@ -88,32 +92,53 @@ def _seats_view(c, site: str, text: str, seats_wanted, preferences) -> dict[str,
         "summary": lines[at + 1].strip() if at is not None and at + 1 < len(lines) else "",
         "site": site,
         "positions": site == "MakeMyTrip",  # labels are positions; the site numbers seats once picked
-        "decks": [
+        "decks": [_deck_view(d, picks) for d in decks],
+    }
+
+
+_TYPE = {"sleeper": "sleeper berth", "seater": "seat", "semi_sleeper": "semi-sleeper seat"}
+
+
+def _deck_view(d: DeckLayout, picks: set) -> dict[str, Any]:
+    taken = {(s.row, s.col) for s in d.seats}
+    groups = sides(d)
+    return {
+        "deck": d.deck,
+        # e.g. "left: single sleeper berths (window) · right: 2 seats side by side"
+        "plan": deck_plan(d),
+        "rows": d.rows if d.positioned else None,
+        "cols": d.cols if d.positioned else None,
+        # The aisle is right of this column; None when it's already an empty column of the grid.
+        "aisle_after": groups[0][-1] if len(groups) == 2 and not any(a >= 0 for a in d.aisle_cols) else None,
+        "mixed": mixed(d),
+        "seats": [
             {
-                "deck": d.deck,
-                "rows": d.rows if d.positioned else None,
-                "cols": d.cols if d.positioned else None,
-                "seats": [
-                    {
-                        "n": s.number,
-                        "r": s.row,
-                        "c": s.col,
-                        "s": s.status,
-                        "p": s.price,
-                        "k": s.kind,
-                        "f": {"female": "F", "male": "M"}.get(s.reserved_for or "", ""),
-                        "w": s.window,
-                        "pick": (s.deck, s.number) in picks,
-                    }
-                    for s in d.seats
-                ],
+                "n": s.number,
+                "type": _TYPE.get(s.kind, "seat"),
+                "r": s.row,
+                "c": s.col,
+                # A berth is as long as two seats: it takes the row below too when that's empty.
+                "span": 2
+                if s.kind == "sleeper"
+                and s.row is not None
+                and s.row + 1 < d.rows
+                and (s.row + 1, s.col) not in taken
+                else 1,
+                "side": s.side,
+                "single": s.single,
+                "s": s.status,
+                "p": s.price,
+                "k": s.kind,
+                "f": {"female": "F", "male": "M"}.get(s.reserved_for or "", ""),
+                "w": s.window,
+                "pick": (s.deck, s.number) in picks,
             }
-            for d in decks
+            for s in d.seats
         ],
     }
 
 
-_ROW = re.compile(r"^\| (\d+) \| (.+?) \| (.+?) \| (.+?) \| (.+?) \| (.*?) \|")
+_ROW = re.compile(r"^\| (\d+) \| (.+?) \| (.+?) \| (.+?) \| (.+?) \| (.*?) \|(?: \[([^\]]+)\]\()?")
 
 
 def _buses_view(text: str) -> dict[str, Any] | None:
@@ -125,7 +150,7 @@ def _buses_view(text: str) -> dict[str, Any] | None:
         elif not sections:
             continue
         elif m := _ROW.match(line):
-            n, time, bus, fare, trust, note = m.groups()
+            n, time, bus, fare, trust, note, site = m.groups()
             sections[-1]["rows"].append(
                 {
                     "n": int(n),
@@ -134,6 +159,7 @@ def _buses_view(text: str) -> dict[str, Any] | None:
                     "fare": fare,
                     "trust": trust,
                     "note": "" if note == "-" else note,
+                    "site": site,  # set when buses from several sites are ranked together
                 }
             )
         elif line.startswith("_") and line.endswith("_") and not line.startswith("_Trust"):

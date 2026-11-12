@@ -63,7 +63,7 @@ def test_widget_draws_the_seat_map_and_asks_for_a_tapped_seat(page, views):
     page.locator("button.seat.pick").click()
     page.wait_for_timeout(100)
     asks = [m for m in page.evaluate("window.__sent") if m.get("method") == "ui/message"]
-    assert asks and "seat 4L (lower deck)" in asks[-1]["params"]["content"][0]["text"]
+    assert asks and "berth 4L (lower deck)" in asks[-1]["params"]["content"][0]["text"]
 
 
 def test_widget_draws_every_bus_and_escapes_text(page, views):

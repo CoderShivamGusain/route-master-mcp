@@ -1,6 +1,7 @@
 """The drawable view (MCP Apps) behind browser_open / browser_read / browser_action."""
 
 import json
+from pathlib import Path
 
 import pytest
 from page_fixtures import MMT_SEATS, REDBUS_FORM, REDBUS_RESULTS, REDBUS_SEATS
@@ -58,3 +59,26 @@ def test_view_page_is_self_contained():
     assert VIEW_URI.startswith("ui://") and VIEW_MIME == "text/html;profile=mcp-app"
     assert "ui/notifications/tool-result" in html and "innerHTML" not in html
     assert "http://" not in html and "https://" not in html  # no outside scripts, fonts or images
+
+
+FLIXBUS = (Path(__file__).resolve().parents[1] / "fixtures" / "mmt_flixbus_seats.json").read_text(
+    encoding="utf-8"
+)
+
+
+@pytest.mark.anyio
+async def test_mixed_deck_says_which_side_is_single_and_what_is_a_berth():
+    """User, 12 Nov 2026: the map didn't show sleeper vs chair, or which side has 1 and which 2."""
+    text = await read_page(capture=FLIXBUS, operator="FlixBus", departure="18:15")
+    assert "**Lower deck** — left: single sleeper berths (window) · right: 2 seats side by side" in text
+    assert (
+        "**Upper deck** — left: single sleeper berths (window) · right: 2 sleeper berths side by side" in text
+    )
+    assert "[L1 B ₹398]" in text and "[L7 S ₹232]" in text and "`B` sleeper berth" in text
+    assert "L1 (sleeper berth, single, window, lower deck" in text
+    view = page_view(FLIXBUS, text)
+    lower = view["decks"][0]
+    assert lower["plan"].startswith("left: single sleeper berths") and lower["aisle_after"] == 0
+    seats = {s["n"]: s for s in lower["seats"]}
+    assert seats["L1"]["type"] == "sleeper berth" and seats["L1"]["span"] == 2 and seats["L1"]["single"]
+    assert seats["L7"]["type"] == "seat" and seats["L7"]["span"] == 1 and seats["L7"]["side"] == "right"

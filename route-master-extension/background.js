@@ -272,7 +272,7 @@ async function run(op, args) {
     const t = await chrome.tabs.create({ windowId: base.windowId, url: args.url, active: false });
     try {
       await sleep(500);
-      await waitLoad(t.id, 30000);
+      await waitLoad(t.id, 20000); // well inside the server's 40 s for a peek
       await sleep(2500);
       return { capture: await capture(t.id) };
     } finally {

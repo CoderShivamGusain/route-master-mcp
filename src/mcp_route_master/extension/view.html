@@ -33,7 +33,12 @@
   .seat { min-width: 52px; min-height: 40px; border-radius: 7px; border: 2px solid var(--free);
     background: var(--free-bg); color: var(--fg); font: inherit; font-size: 12px; padding: 3px 4px;
     display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; }
-  .seat.sleeper { min-height: 64px; }
+  .seat.sleeper { min-height: 64px; border-radius: 10px 10px 7px 7px; }
+  .seat .tag { font-size: 10px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+  .seat.sold .tag { color: var(--sold); }
+  .plan { font-size: 12px; color: var(--fg); margin: -2px 0 8px; max-width: 360px; }
+  .aisle { border-left: 2px dashed var(--line); margin: 0 auto; width: 0; }
+  .aisle-label { font-size: 10px; color: var(--muted); writing-mode: vertical-rl; text-align: center; align-self: center; }
   .seat b { font-size: 12px; }
   .seat small { font-size: 11px; color: var(--muted); }
   .seat.free { cursor: pointer; }
@@ -131,10 +136,24 @@
     for (const d of Array.isArray(v.decks) ? v.decks : []) {
       const box = el("div", "deck");
       if (v.decks.length > 1) box.append(el("h3", "", String(d.deck || "").replace(/^./, c => c.toUpperCase()) + " deck"));
+      if (d.plan) box.append(el("p", "plan", String(d.plan).replace(/^./, c => c.toUpperCase())));
       box.append(el("div", "front", "Front (driver) ▲"));
-      const positioned = Number.isInteger(d.rows) && Number.isInteger(d.cols) && d.rows > 0 && d.cols > 0;
+      const positioned = Number.isInteger(d.rows) && Number.isInteger(d.cols) && d.rows > 0 && d.cols > 0 && d.cols <= 12;
       const grid = el("div", positioned ? "grid" : "flow");
-      if (positioned) grid.style.gridTemplateColumns = `repeat(${Math.min(d.cols, 12)}, minmax(52px, auto))`;
+      // An extra narrow column for the aisle, so it's clear which side has single and which double seats.
+      const gap = positioned && Number.isInteger(d.aisle_after) ? d.aisle_after : null;
+      const col = c => c + 1 + (gap !== null && c > gap ? 1 : 0);
+      if (positioned) {
+        const tracks = [];
+        for (let c = 0; c < d.cols; c++) { tracks.push("minmax(52px, auto)"); if (c === gap) tracks.push("26px"); }
+        grid.style.gridTemplateColumns = tracks.join(" ");
+        if (gap !== null) {
+          const a = el("div", "aisle");
+          a.style.gridColumn = String(gap + 2);
+          a.style.gridRow = `1 / ${d.rows + 1}`;
+          grid.append(a);
+        }
+      }
       for (const s of Array.isArray(d.seats) ? d.seats : []) {
         const free = s.s === "available";
         const cls = ["seat", s.s === "sold" ? "sold" : s.s === "selected" ? "selected" : "free"];
@@ -144,15 +163,18 @@
         const b = el("button", cls.join(" "));
         b.type = "button";
         b.append(el("b", "", String(s.n) + (s.f ? " " + s.f : "")));
+        if (d.mixed) b.append(el("span", "tag", s.k === "sleeper" ? "Berth" : s.k === "semi_sleeper" ? "Semi" : "Seat"));
         b.append(el("small", "", s.s === "sold" ? "sold" : s.s === "selected" ? "selected"
           : (typeof s.p === "number" ? "₹" + s.p.toLocaleString("en-IN") : "")));
-        const what = [d.deck + " deck", s.k === "sleeper" ? "berth" : "seat", s.w ? "window" : ""].filter(Boolean).join(", ");
+        const what = [d.deck + " deck", s.type || (s.k === "sleeper" ? "sleeper berth" : "seat"),
+          s.single ? "single (window)" : s.w ? "window" : "", s.side ? s.side + " side" : ""].filter(Boolean).join(", ");
         b.title = `${s.n} · ${what}` + (s.f === "F" ? " · women only" : s.f === "M" ? " · men only" : "");
         if (positioned && Number.isInteger(s.r) && Number.isInteger(s.c)) {
-          b.style.gridRow = String(s.r + 1);
-          b.style.gridColumn = String(s.c + 1);
+          b.style.gridRow = s.span === 2 ? `${s.r + 1} / span 2` : String(s.r + 1);
+          b.style.gridColumn = String(col(s.c));
         }
-        if (free) b.addEventListener("click", () => say(`I'd like seat ${s.n} (${d.deck} deck).`));
+        const kindWord = s.k === "sleeper" ? "berth" : "seat";
+        if (free) b.addEventListener("click", () => say(`I'd like ${kindWord} ${s.n} (${d.deck} deck).`));
         else b.disabled = true;
         grid.append(b);
       }
@@ -167,7 +189,9 @@
     item("Selected", "var(--sel)", "var(--sel-bg)");
     item("Women/men only", "var(--lady)", "var(--lady-bg)");
     item("Suggested", "var(--pick)", "transparent");
+    const kinds = el("p", "hint", "Berth = sleeper bed you lie on (long tile) · Seat = chair (short tile) · dashed line = aisle.");
     app.append(legend);
+    if ((v.decks || []).some(d => d.mixed)) app.append(kinds);
     app.append(el("p", "hint", "Tap a free seat to choose it." +
       (v.positions ? " Labels are positions; the site shows its own seat number once one is picked." : "")));
   }
@@ -181,16 +205,18 @@
       const wrap = el("div", "wrap");
       const t = el("table");
       const head = el("tr");
-      for (const h of ["#", "Time", "Bus", "Fare", "Trust", "Note"]) head.append(el("th", "", h));
+      const rows = Array.isArray(sec.rows) ? sec.rows : [];
+      const withSite = rows.some(r => r.site);
+      for (const h of ["#", "Time", "Bus", "Fare", "Trust", "Note", ...(withSite ? ["Site"] : [])]) head.append(el("th", "", h));
       t.append(head);
       for (const r of Array.isArray(sec.rows) ? sec.rows : []) {
         const tr = el("tr", "pickable");
-        for (const c of [r.n, r.time, r.bus, r.fare, r.trust, r.note]) tr.append(el("td", "", c));
+        for (const c of [r.n, r.time, r.bus, r.fare, r.trust, r.note, ...(withSite ? [r.site || ""] : [])]) tr.append(el("td", "", c));
         tr.title = "Show this bus's seats";
         tr.addEventListener("click", () => {
           const op = String(r.bus || "").split(" · ")[0];
           const dep = String(r.time || "").split(" ")[0];
-          say(`Show me the seats on ${op} at ${dep}` + (day ? ` on ${day}.` : "."));
+          say(`Show me the seats on ${op} at ${dep}` + (day ? ` on ${day}` : "") + (r.site ? ` (${r.site})` : "") + ".");
         });
         t.append(tr);
       }

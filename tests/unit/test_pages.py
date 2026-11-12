@@ -377,3 +377,44 @@ async def test_mmt_buses_after_midnight_are_marked_as_next_day():
     err, out = await read(_form(MMT_RESULTS, text=text))
     assert not err and "1 more bus(es) leave after midnight" in out
     assert "RTH STAR BUS" not in out  # not ranked as an already-gone 00:50 bus of this day
+
+
+def test_mmt_extra_is_read_by_its_name_tripassured_seen_live():
+    """Live, 12 Nov 2026: MakeMyTrip now offers "TripAssured" with "No,I don't need it" (no space);
+    the form check waited for "Free Cancellation" forever and the booking got stuck."""
+    choices = [
+        {"t": "Add TripAssured at ₹21/Person Details", "on": False},
+        {"t": "No,I don't need it", "on": False},
+    ]
+    f = P.parse_mmt_form(cap(_form(MMT_FORM, choices=choices)))
+    assert f.add_ons["TripAssured"] is None and "Free Cancellation" not in f.add_ons
+    choices[1]["on"] = True
+    assert P.parse_mmt_form(cap(_form(MMT_FORM, choices=choices))).add_ons["TripAssured"] is False
+    choices[0]["on"], choices[1]["on"] = True, False
+    assert P.parse_mmt_form(cap(_form(MMT_FORM, choices=choices))).add_ons["TripAssured"] is True
+
+
+def test_mmt_extras_fail_closed_on_unknown_wording_and_pair_by_order():
+    unknown = [{"t": "Add CoolProtect for just 21", "on": False}, {"t": "No,I don't need it", "on": True}]
+    f = P.parse_mmt_form(cap(_form(MMT_FORM, choices=unknown)))
+    assert f.add_ons.get("Extra offered on the page") is None and "Extra offered on the page" in f.add_ons
+    odd = [{"t": "Protect my trip", "on": False}, {"t": "Maybe later", "on": False}]
+    assert "Extra offered on the page" in P.parse_mmt_form(cap(_form(MMT_FORM, choices=odd))).add_ons
+    two = [
+        {"t": "Add TripAssured at ₹21/Person", "on": True},
+        {"t": "No,I don't need it", "on": False},
+        {"t": "Add Free Cancellation at ₹99/person", "on": False},
+        {"t": "No,I don't need it", "on": True},
+    ]
+    assert P.parse_mmt_form(cap(_form(MMT_FORM, choices=two))).add_ons == {
+        "TripAssured": True,
+        "Free Cancellation": False,
+        "Trip insurance": False,
+    }
+
+
+@pytest.mark.anyio
+async def test_unanswered_extra_still_blocks_the_summary():
+    unknown = [{"t": "Add CoolProtect for just 21", "on": False}, {"t": "No,I don't need it", "on": False}]
+    err, text = await read(_form(MMT_FORM, choices=unknown), requested_seats=["B"])
+    assert "Extra offered on the page: add or not" in text and "**confirm**" not in text

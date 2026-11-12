@@ -172,12 +172,27 @@ globalThis.__rm = {
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
   const done = [];
-  const labels = [...document.querySelectorAll("*")].filter(n => n.children.length === 0 &&
-    /^(Don.?t add |No I don.?t need it)/i.test(sq(n.textContent)));
+  // "Don't add ..." (redBus), "No,I don't need it" (MakeMyTrip: Free Cancellation, TripAssured).
+  const NO = /^(Don.?t add |No,?\s*I\s*(don.?t|do not)\s+(need|want)|No,?\s*I.?ll (take the )?risk)/i;
+  const press = el => {
+    const r = el.getBoundingClientRect();
+    const at = { bubbles: true, cancelable: true, view: window, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+    for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"])
+      el.dispatchEvent(new (type.startsWith("pointer") ? PointerEvent : MouseEvent)(type, at));
+    el.click();
+  };
+  const labels = [...document.querySelectorAll("*")].filter(n => n.children.length === 0 && NO.test(sq(n.textContent)));
   for (const el of labels) {
-    let c = el; for (let k = 0; k < 4 && c && !c.querySelector("input[type=radio]"); k++) c = c.parentElement;
-    const r = c && c.querySelector("input[type=radio]");
-    (r || el.parentElement || el).click(); done.push(sq(el.textContent)); await wait(600);
+    // Press only inside this option: a radio found further up could be the "Add ..." one.
+    const box = el.closest(".bottomContainer > div");
+    let r = null;
+    if (box) r = box.querySelector("input[type=radio]");
+    else {
+      let c = el; for (let k = 0; k < 4 && c && !c.querySelector("input[type=radio]"); k++) c = c.parentElement;
+      const radios = c ? c.querySelectorAll("input[type=radio]") : [];
+      r = radios.length === 1 ? radios[0] : null; // one radio: this option's own
+    }
+    press(r || box || el.parentElement || el); done.push(sq(el.textContent)); await wait(600);
   }
   for (const cb of document.querySelectorAll(".travelInsuranceWrapper input[type=checkbox]")) {
     if (cb.checked) { cb.click(); done.push("unticked insurance"); await wait(600); } }

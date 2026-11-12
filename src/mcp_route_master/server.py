@@ -36,7 +36,7 @@ import logging
 import os
 import re
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import date, datetime, timedelta
 from functools import cache
 from typing import Annotated, Any, Literal, get_args
@@ -71,9 +71,11 @@ from mcp_route_master.booking.seats import (
     Front,
     Preference,
     Seat,
+    deck_plan,
     describe,
     draw,
     layout,
+    mixed,
     normalise_kind,
     normalise_reserved,
     normalise_status,
@@ -81,6 +83,7 @@ from mcp_route_master.booking.seats import (
 )
 from mcp_route_master.browser import scripts as page_scripts
 from mcp_route_master.browser.pages import (
+    Bus,
     Capture,
     CaptureError,
     FormRead,
@@ -863,11 +866,20 @@ async def explain_seat_map(
         facts.append(price_text)
     out += [" · ".join(facts), ""]
     for d in decks:
-        if len(decks) > 1:
-            out.append(f"**{d.deck.title()} deck**")
+        plan = deck_plan(d)
+        head = f"**{d.deck.title()} deck**" if len(decks) > 1 else ""
+        if plan:
+            head = f"{head} — {plan}" if head else f"_{plan}_"
+        if head:
+            out.append(head)
         out += ["```", draw(d), "```"]
     out.append(
-        "`--` sold · `OK` selected"
+        (
+            "`B` sleeper berth (lie down; as long as two seats) · `S` seat · "
+            if any(mixed(d) for d in decks)
+            else ""
+        )
+        + "`--` sold · `OK` selected"
         + (" · F/M women/men only" if any(p.reserved_for for p in parsed) else "")
         + (
             " · labels are positions; the site shows its own number once a seat is selected"
@@ -1317,33 +1329,65 @@ async def read_page(
     )
 
 
-async def _read_results(c: Capture, site: str, route, bus_type, around_time, sort_by) -> str:
-    parser = parse_redbus_results if site == "redBus" else parse_mmt_results
-    buses, groups, problems = await _off_loop(parser, c)
+async def _read_results(
+    c: Capture, site: str, route, bus_type, around_time, sort_by, more: Sequence[tuple[Capture, str]] = ()
+) -> str:
+    """Rank the buses on a results page; `more` adds other sites' pages for the same route and date,
+    so the user sees every option in one table (the Book column says where each bus is)."""
     if not route.origin or not route.destination or not route.travel_date:
         raise ToolError("Couldn't tell the route or date from the page address; use rank_buses instead.")
-    head = []
-    total = re.search(r"\b(\d+) buses\b", c.text)
-    if total and site == "redBus" and int(total.group(1)) > len(buses):
-        head.append(
-            f"_Read the {len(buses)} buses loaded so far of {total.group(1)}. For all of them, open this route's "
-            "MakeMyTrip link (it lists every bus), or use redBus's filters (Sleeper, AC, time)._"
-        )
-    if groups:
-        head.append(
-            "_Government buses grouped on the site: "
-            + "; ".join(f"{g.name} ({g.count} buses, from ₹{g.fare_from:g})" for g in groups)
-            + ". Open that row to see them._"
-        )
-    if problems:
-        head.append(f"_{len(problems)} listing(s) couldn't be read._")
-    if not buses:
+    pages = [(c, site), *more]
+    several = len({s for _, s in pages}) > 1
+    head: list[str] = []
+    listings: list[tuple[str, Bus]] = []
+    for page, page_site in pages:
+        parser = parse_redbus_results if page_site == "redBus" else parse_mmt_results
+        buses, groups, problems = await _off_loop(parser, page)
+        who = f"{page_site}: " if several else ""
+        total = re.search(r"\b(\d+) buses\b", page.text)
+        if total and page_site == "redBus" and int(total.group(1)) > len(buses):
+            head.append(
+                f"_{who}read the {len(buses)} buses loaded so far of {total.group(1)}. "
+                + (
+                    "MakeMyTrip's list below is complete; for more on redBus use its filters (Sleeper, AC, time)._"
+                    if several
+                    else "For all of them, open this route's MakeMyTrip link (it lists every bus), or use redBus's "
+                    "filters (Sleeper, AC, time)._"
+                )
+            )
+        if groups:
+            head.append(
+                f"_{who}government buses grouped on the site: "
+                + "; ".join(f"{g.name} ({g.count} buses, from ₹{g.fare_from:g})" for g in groups)
+                + ". Open that row to see them._"
+            )
+        if problems:
+            head.append(f"_{who}{len(problems)} listing(s) couldn't be read._")
+        listings += [(page_site, b) for b in buses]
+    if not listings:
         raise ToolError("No buses could be read from this page. " + " ".join(head))
+    if several:
+        # The same bus on both sites (same operator, departure and arrival): keep the cheaper listing.
+        # Two buses of one operator at the same time on the same site are different buses: both stay.
+        def key(b: Bus) -> tuple:
+            return (re.sub(r"[^a-z0-9]", "", b.operator.lower()), b.departure, b.arrival)
+
+        first_site = pages[0][1]
+        first = {key(b): i for i, (ps, b) in enumerate(listings) if ps == first_site}
+        drop: set[int] = set()
+        for i, (ps, b) in enumerate(listings):
+            j = first.get(key(b)) if ps != first_site else None
+            if j is not None:
+                drop.add(j if (b.fare or 1e9) < (listings[j][1].fare or 1e9) else i)
+        twins = len(drop)
+        listings = [x for i, x in enumerate(listings) if i not in drop]
+        if twins:
+            head.append(f"_{twins} bus(es) are on both sites; the cheaper listing is shown._")
     # MakeMyTrip lists buses leaving just after midnight ("00:50 13 NOV") on the day before's page.
     # Ranked as today's 00:50 they'd look already gone, so they're shown as next-day buses instead.
     day = route.travel_date
-    later = [b for b in buses if b.day is not None and b.day != day.day]
-    same = [b for b in buses if b not in later]
+    later = [x for x in listings if x[1].day is not None and x[1].day != day.day]
+    same = [x for x in listings if x not in later]
     if later and same:
         head.append(
             f"_{len(later)} more bus(es) leave after midnight ({human_date(day + timedelta(days=1))}); "
@@ -1356,8 +1400,8 @@ async def _read_results(c: Capture, site: str, route, bus_type, around_time, sor
         destination=route.destination,
         travel_date=day.isoformat(),
         buses=[
-            BusListing(platform=site, **{k: v for k, v in vars(b).items() if v is not None and k != "day"})
-            for b in same
+            BusListing(platform=ps, **{k: v for k, v in vars(b).items() if v is not None and k != "day"})
+            for ps, b in same
         ],
         bus_type=bus_type,
         sort_by=sort_by,
@@ -1365,6 +1409,37 @@ async def _read_results(c: Capture, site: str, route, bus_type, around_time, sor
     )
     first, _, rest = ranked.partition("\n")
     return "\n".join([first, *head, rest]) if head else ranked
+
+
+async def read_results_pages(
+    captures: Sequence[str], bus_type: str = "any", around_time: str | None = None, sort_by: str = "best"
+) -> str | None:
+    """One ranked table from several sites' results pages for the same route and date (the first page
+    leads). None when the pages aren't all results pages for the same trip."""
+    pages = []
+    for raw in captures:
+        try:
+            c = await _off_loop(load_capture, raw)
+        except CaptureError:
+            return None
+        site = site_of(c.url)
+        if site is None or urlsplit(c.url).scheme != "https" or page_kind(c, site) != "results":
+            return None
+        pages.append((c, site, route_of(c, site)))
+    (c0, s0, r0), rest = pages[0], pages[1:]
+    res = get_resolver()
+
+    def hub(name):
+        found = res.resolve(name) if name else None
+        return found.hub.name if found and found.ok and not found.fuzzy and not found.assumed else None
+
+    o0, d0 = hub(r0.origin), hub(r0.destination)
+    same_trip = [
+        (c, s)
+        for c, s, r in rest
+        if r.travel_date == r0.travel_date and o0 and d0 and (hub(r.origin), hub(r.destination)) == (o0, d0)
+    ]
+    return await _read_results(c0, s0, r0, bus_type, around_time, sort_by, more=same_trip)
 
 
 async def _read_seats(c: Capture, site: str, operator, departure, seats_wanted, preferences) -> str:

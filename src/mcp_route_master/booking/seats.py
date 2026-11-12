@@ -53,6 +53,8 @@ class Seat:
     col: int | None = None
     window: bool = False
     aisle: bool = False
+    side: str | None = None  # "left" / "right" of the aisle, as on the site's map (front at the top)
+    single: bool = False  # alone on its side of the aisle (a single berth or seat)
 
 
 def normalise_status(text: str | None) -> SeatStatus:
@@ -194,8 +196,13 @@ def layout(seats: list[Seat], front: Front = "auto") -> list[DeckLayout]:
                 typical = min(gaps)  # seat pitch; the aisle is the gap clearly wider than it
                 big = [i for i, g in enumerate(gaps) if g > 1.4 * typical]
                 dl.aisle_cols = {-(i + 1) for i in big}  # aisle sits *between* col i and i+1
+            groups = sides(dl)
             for s in ds:
                 s.window = s.col in (0, dl.cols - 1)
+                if len(groups) == 2:
+                    g = next((i for i, cols in enumerate(groups) if s.col in cols), None)
+                    if g is not None:
+                        s.side, s.single = ("left", "right")[g], len(groups[g]) == 1
                 # Next to an aisle column, or on either side of an aisle gap.
                 s.aisle = any(
                     (a >= 0 and abs(s.col - a) == 1) or (a < 0 and s.col in (-a - 1, -a))
@@ -207,11 +214,67 @@ def layout(seats: list[Seat], front: Front = "auto") -> list[DeckLayout]:
     return out
 
 
-def _cell(s: Seat | None, width: int) -> str:
-    """'[12F ₹850]' for a free ladies seat, '[12 --]' sold, '[12 OK]' selected; blank if no seat."""
+def sides(dl: DeckLayout) -> list[list[int]]:
+    """Columns on each side of the aisle, left to right, e.g. [[0], [2, 3]] for a 1+2 layout."""
+    if not dl.positioned:
+        return []
+    empty = {c for c in dl.aisle_cols if c >= 0}
+    after = {-a - 1 for a in dl.aisle_cols if a < 0}
+    groups: list[list[int]] = []
+    cur: list[int] = []
+    for c in range(dl.cols):
+        if c in empty:
+            if cur:
+                groups.append(cur)
+            cur = []
+            continue
+        cur.append(c)
+        if c in after:
+            groups.append(cur)
+            cur = []
+    if cur:
+        groups.append(cur)
+    return groups
+
+
+_KIND_WORD = {"sleeper": "sleeper berth", "seater": "seat", "semi_sleeper": "semi-sleeper seat"}
+
+
+def mixed(dl: DeckLayout) -> bool:
+    """Both berths and seats on this deck (then each cell says which it is)."""
+    kinds = {s.kind for s in dl.seats} - {"unknown"}
+    return "sleeper" in kinds and len(kinds) > 1
+
+
+def deck_plan(dl: DeckLayout) -> str:
+    """'left: single sleeper berths (window) · right: 2 seats side by side', as on the site's map."""
+    groups = sides(dl)
+    if len(groups) != 2:
+        kinds = {s.kind for s in dl.seats} - {"unknown"}
+        return " and ".join(sorted(_KIND_WORD[k] + "s" for k in kinds)) if kinds else ""
+    parts = []
+    for name, cols in zip(("left", "right"), groups, strict=True):
+        kinds = sorted({s.kind for s in dl.seats if s.col in cols} - {"unknown"})
+        what = " and ".join(_KIND_WORD[k] + "s" for k in kinds) or "seats"
+        n = len(cols)
+        if n == 1:
+            across = f"single {what} (window)"
+        elif len(kinds) == 1:
+            across = f"{n} {what} side by side"
+        else:
+            across = f"{n} across ({what})"
+        parts.append(f"{name}: {across}")
+    return " · ".join(parts)
+
+
+def _cell(s: Seat | None, width: int, kinds: bool = False) -> str:
+    """'[12F ₹850]' for a free ladies seat, '[12 --]' sold, '[12 OK]' selected; blank if no seat.
+    With `kinds` (decks with berths and seats), berths get 'B' and seats 'S': '[L1 B ₹398]'."""
     if s is None:
         return " " * width
     flag = {"female": "F", "male": "M"}.get(s.reserved_for or "", "")
+    if kinds and s.kind != "unknown":
+        flag += " B" if s.kind == "sleeper" else " S"
     if s.status == "sold":
         text = f"{s.number}{flag} --"
     elif s.status == "selected":
@@ -227,7 +290,8 @@ def draw(dl: DeckLayout) -> str:
         cells = [_cell(s, 0).strip() for s in dl.seats]
         lines = [" ".join(cells[i : i + 6]) for i in range(0, len(cells), 6)]
         return "\n".join(["(seat positions not given; listed in number order)", *lines])
-    width = max(len(_cell(s, 0)) for s in dl.seats) + 1
+    kinds = mixed(dl)
+    width = max(len(_cell(s, 0, kinds)) for s in dl.seats) + 1
     grid: dict[tuple[int, int], Seat] = {(s.row, s.col): s for s in dl.seats}
     lines = ["FRONT (driver)"]
     gap_after = {-a - 1 for a in dl.aisle_cols if a < 0}
@@ -238,7 +302,7 @@ def draw(dl: DeckLayout) -> str:
             if c in dl.aisle_cols and seat is None:
                 parts.append("|".center(width))
             else:
-                parts.append(_cell(seat, width))
+                parts.append(_cell(seat, width, kinds))
             if c in gap_after:
                 parts.append(" | ")
         lines.append("".join(parts).rstrip())
@@ -327,12 +391,15 @@ def suggest(
 
 def describe(s: Seat) -> str:
     """'15 (window, row 3, ₹697)'; the deck is named for berths and upper-deck seats."""
-    bits = []
-    if s.window:
-        bits.append("window")
-    if s.aisle:
-        bits.append("aisle")
-    if s.deck != "lower" or s.kind == "sleeper":
+    bits = [_KIND_WORD[s.kind]] if s.kind in _KIND_WORD else []
+    if s.single:
+        bits.append("single, window")
+    else:
+        if s.window:
+            bits.append("window")
+        if s.aisle:
+            bits.append("aisle")
+    if s.deck != "lower" or s.kind == "sleeper":  # (a berth's deck matters: upper means climbing)
         bits.append(f"{s.deck} deck")
     if s.row is not None:
         bits.append(f"row {s.row + 1}")

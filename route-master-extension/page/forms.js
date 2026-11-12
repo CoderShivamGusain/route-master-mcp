@@ -54,7 +54,7 @@
   const choose = (text, occurrence = 1) => {
     if (onPayment()) return { error: "this is the payment page: the user decides there" };
     const want = sq(text).toLowerCase();
-    if (!want || BANNED.test(want) && !/^don.?t add|^no,? i don.?t/i.test(want))
+    if (!want || BANNED.test(want) && !/^don.?t add|^no,?\s*i\s*(don.?t|do not)\s+(need|want)\b/i.test(want))
       return { error: "that option can't be chosen by route-master" };
     const own = n => sq([...n.childNodes].filter(c => c.nodeType === 3).map(c => c.textContent).join(" ")) ||
       (n.children.length === 0 ? sq(n.textContent) : "");

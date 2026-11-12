@@ -55,9 +55,15 @@ route-master window in your Chrome (behind your other windows), ranks the buses,
 map, picks your seat and stops, fills the form with your OK, shows a summary, and after your
 "confirm" opens the payment page in front for you to pay.
 
+The bus list covers **redBus and MakeMyTrip together**: the AI opens one site, route-master reads the
+other in a background tab for the same trip, and ranks every bus in one table (the Book column says on
+which site each one is; the same bus on both shows once, at the cheaper fare).
+
 In ChatGPT and Claude the seat map and the bus list also appear as a drawn picture (an MCP App):
-decks to scale, sold and women-only seats marked, the suggested seat highlighted. Tap a free seat or a
-bus row to ask for it. Gemini shows the same information as text.
+each deck as on the site, single and double sides split by a dashed aisle, sleeper berths as long
+tiles and seats as short ones, sold and women-only seats marked, the suggested seat highlighted. Tap
+a free seat or a bus row to ask for it. The text says the same ("left: single sleeper berths ·
+right: 2 seats side by side", `B`/`S` in each cell), so Gemini and any app that draws its own map get it too.
 
 Use only this signed-in app for booking: turn off any older route-master app that points at `/mcp`,
 or the AI may pick it and send you to the site instead of opening the seat map.

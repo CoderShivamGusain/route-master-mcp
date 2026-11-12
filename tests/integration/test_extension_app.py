@@ -94,7 +94,7 @@ class FakeExtension:
         if op == "show":
             return {}
         if op == "peek":
-            return {"capture": json.dumps(self.pages["tomorrow"])}
+            return {"capture": json.dumps(self.pages.get(args["url"]) or self.pages["tomorrow"])}
         return {"capture": json.dumps(self.pages[self.page])}
 
 
@@ -174,7 +174,7 @@ async def test_browser_flow_through_the_relay(server):
             {"url": "https://www.redbus.in/bus-tickets/delhi-to-manali", "bus_type": "sleeper"},
         )
         assert not err and "HRTC (9 buses" in text
-        assert not any(op == "peek" for op, _ in fake.calls)  # not today's page: no extra day
+        assert not any(op == "peek" and "redbus" in a["url"] for op, a in fake.calls)  # no extra day
         err, text = await call(c, "browser_open", {"url": "https://redbus-pay.in/x"})
         assert err and "Only https redbus.in and makemytrip.com" in text
         err, text = await call(
@@ -339,7 +339,7 @@ async def test_browser_open_adds_tomorrows_buses_when_few_are_left(server, monke
         assert not err and "here are tomorrow's too" in text
         assert text.count("ReoBus Pro") >= 2  # in today's table and tomorrow's
         peek = [a for op, a in fake.calls if op == "peek"]
-        assert peek == [{"url": tomorrow["url"]}]
+        assert peek[-1] == {"url": tomorrow["url"]}  # (after MakeMyTrip's page for the same day)
         del fake.pages["tomorrow"]  # an older extension, or tomorrow's page didn't load
         err, text = await call(c, "browser_open", {"url": REDBUS_RESULTS["url"]})
         assert not err and "ReoBus Pro" in text and "tomorrow's too" not in text
@@ -385,3 +385,39 @@ async def test_seat_map_comes_with_a_drawable_view(server):
         )
         assert "## Seats: ReoBus Pro, 22:25" in r.content[0].text  # the text is still there for every AI
         assert r.structured_content["kind"] == "seats" and r.structured_content["decks"]
+
+
+async def test_browser_open_ranks_redbus_and_makemytrip_together(server):
+    """User, 12 Nov 2026: "why only MakeMyTrip, not redBus? I want all the options"."""
+    mmt_url = "https://www.makemytrip.com/bus/search/Delhi/Manali/" + mmt_date(TRAVEL)
+    mmt = json.loads(json.dumps(MMT_RESULTS))
+    mmt["url"] = mmt_url
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        fake.pages[mmt_url] = mmt
+        r = await c.call_tool("browser_open", {"url": REDBUS_RESULTS["url"]})
+        text = r.content[0].text
+        assert ("peek", {"url": mmt_url}) in fake.calls
+        assert "[redBus](" in text and "[MakeMyTrip](" in text  # the Book column names each bus's site
+        assert "ReoBus Pro" in text and "RTH STAR BUS" in text
+        assert "Buses from redBus and MakeMyTrip" in text and mmt_url in text
+        sites = {row["site"] for row in r.structured_content["sections"][0]["rows"]}
+        assert sites == {"redBus", "MakeMyTrip"}
+
+
+async def test_merge_keeps_two_buses_of_one_operator_at_the_same_time(server):
+    """Review: HRTC runs a Volvo and an ordinary bus at 21:00; merging must not drop one."""
+    from mcp_route_master.server import read_results_pages
+
+    rb = json.loads(json.dumps(REDBUS_RESULTS))
+    rb["cards"] = [
+        "21:00 | 08:00 | 11h | 30 Seats | ₹1,200 | Onwards | HRTC | Volvo A/C Sleeper (2+1) | 4.1 | 300",
+        "21:00 | 10:00 | 13h | 30 Seats | ₹700 | Onwards | HRTC | Non A/C Seater (2+3) | 3.9 | 200",
+    ]
+    mmt = json.loads(json.dumps(MMT_RESULTS))
+    mmt["url"] = "https://www.makemytrip.com/bus/search/Delhi/Manali/" + mmt_date(TRAVEL)
+    text = await read_results_pages([json.dumps(rb), json.dumps(mmt)])
+    assert text.count("HRTC ·") == 2 and "on both sites" not in text
+    elsewhere = json.loads(json.dumps(mmt))
+    elsewhere["url"] = "https://www.makemytrip.com/bus/search/Delhi/Shimla/" + mmt_date(TRAVEL)
+    text = await read_results_pages([json.dumps(rb), json.dumps(elsewhere)])
+    assert "RTH STAR BUS" not in text  # another route's page is never mixed in
