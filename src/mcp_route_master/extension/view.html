@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>route-master</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d2330; --muted: #677085; --line: #d9dee8; --card: #f6f8fb;
+    --free: #1f8a4c; --free-bg: #eaf7ef; --sold: #b4bac6; --sold-bg: #eef0f4;
+    --sel: #1f5fd1; --sel-bg: #e7efff; --lady: #c2387b; --lady-bg: #fdeef5;
+    --pick: #e08a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1e24; --fg: #e8ebf1; --muted: #9aa3b5; --line: #353a45; --card: #23272f;
+      --free: #4cc17f; --free-bg: #17301f; --sold: #5d6370; --sold-bg: #2a2e36;
+      --sel: #78a6ff; --sel-bg: #1c2a47; --lady: #f07ab0; --lady-bg: #3a1f2d; --pick: #ffb23e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  #app { padding: 12px; }
+  h2 { font-size: 16px; margin: 0 0 2px; }
+  .sub { color: var(--muted); margin: 0 0 10px; }
+  .decks { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .deck { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+  .deck h3 { font-size: 13px; margin: 0 0 6px; color: var(--muted); font-weight: 600; }
+  .front { font-size: 11px; color: var(--muted); text-align: right; margin-bottom: 6px; }
+  .grid { display: grid; gap: 6px; }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; max-width: 360px; }
+  .seat { min-width: 52px; min-height: 40px; border-radius: 7px; border: 2px solid var(--free);
+    background: var(--free-bg); color: var(--fg); font: inherit; font-size: 12px; padding: 3px 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; }
+  .seat.sleeper { min-height: 64px; }
+  .seat b { font-size: 12px; }
+  .seat small { font-size: 11px; color: var(--muted); }
+  .seat.free { cursor: pointer; }
+  .seat.free:hover, .seat.free:focus-visible { outline: 2px solid var(--sel); outline-offset: 1px; }
+  .seat.sold { border-color: var(--sold); background: var(--sold-bg); color: var(--sold); cursor: default; }
+  .seat.sold small { color: var(--sold); }
+  .seat.selected { border-color: var(--sel); background: var(--sel-bg); }
+  .seat.lady { border-color: var(--lady); background: var(--lady-bg); }
+  .seat.pick { box-shadow: 0 0 0 3px var(--pick); }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; color: var(--muted); font-size: 12px; }
+  .legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px;
+    margin-right: 5px; vertical-align: -1px; border: 2px solid var(--c); background: var(--b); }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  tr.pickable { cursor: pointer; }
+  tr.pickable:hover td { background: var(--card); }
+  .note { color: var(--muted); font-size: 12px; }
+  .section + .section { margin-top: 16px; }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(() => {
+  "use strict";
+  const app = document.getElementById("app");
+  let nextId = 1;
+  const post = msg => window.parent.postMessage(msg, "*");
+
+  // ---- MCP Apps handshake (ChatGPT, Claude); window.openai is ChatGPT's older bridge.
+  const initId = nextId++;
+  post({ jsonrpc: "2.0", id: initId, method: "ui/initialize",
+    params: { appInfo: { name: "route-master", version: "1" }, appCapabilities: {},
+      protocolVersion: "2026-01-26" } });
+
+  window.addEventListener("message", event => {
+    if (event.source !== window.parent) return;
+    const msg = event.data;
+    if (!msg || msg.jsonrpc !== "2.0") return;
+    if (msg.id === initId && !msg.method) {
+      post({ jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} });
+    } else if (msg.id !== undefined && msg.method) {
+      post({ jsonrpc: "2.0", id: msg.id, result: {} });  // host requests (ping, teardown): just acknowledge
+    } else if (msg.method === "ui/notifications/tool-result") {
+      render(msg.params && msg.params.structuredContent);
+    }
+  });
+  window.addEventListener("openai:set_globals", e => {
+    const g = e.detail && e.detail.globals;
+    if (g && g.toolOutput) render(g.toolOutput);
+  });
+  if (window.openai && window.openai.toolOutput) render(window.openai.toolOutput);
+
+  // Ask for something in the chat, as the user ("I'd like seat L4").
+  function say(text) {
+    // Page text (operator names) goes into the user's message: plain, short.
+    text = String(text).replace(/[\u0000-\u001f\u007f<>]/g, " ").slice(0, 160);
+    if (window.openai && typeof window.openai.sendFollowUpMessage === "function") {
+      window.openai.sendFollowUpMessage({ prompt: text });
+      return;
+    }
+    post({ jsonrpc: "2.0", id: nextId++, method: "ui/message",
+      params: { role: "user", content: [{ type: "text", text }] } });
+  }
+
+  function resize() {
+    post({ jsonrpc: "2.0", method: "ui/notifications/size-changed",
+      params: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight } });
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(document.body);
+
+  // ---- rendering (data is untrusted: only textContent, never raw HTML)
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = String(text);
+    return e;
+  };
+
+  function render(view) {
+    if (!view || typeof view !== "object") return;
+    app.replaceChildren();
+    if (view.kind === "seats") renderSeats(view);
+    else if (view.kind === "buses") renderBuses(view);
+    resize();
+  }
+
+  function renderSeats(v) {
+    app.append(el("h2", "", v.title || "Seats"));
+    if (v.summary) app.append(el("p", "sub", v.summary));
+    const decks = el("div", "decks");
+    for (const d of Array.isArray(v.decks) ? v.decks : []) {
+      const box = el("div", "deck");
+      if (v.decks.length > 1) box.append(el("h3", "", String(d.deck || "").replace(/^./, c => c.toUpperCase()) + " deck"));
+      box.append(el("div", "front", "Front (driver) ▲"));
+      const positioned = Number.isInteger(d.rows) && Number.isInteger(d.cols) && d.rows > 0 && d.cols > 0;
+      const grid = el("div", positioned ? "grid" : "flow");
+      if (positioned) grid.style.gridTemplateColumns = `repeat(${Math.min(d.cols, 12)}, minmax(52px, auto))`;
+      for (const s of Array.isArray(d.seats) ? d.seats : []) {
+        const free = s.s === "available";
+        const cls = ["seat", s.s === "sold" ? "sold" : s.s === "selected" ? "selected" : "free"];
+        if (s.k === "sleeper") cls.push("sleeper");
+        if (s.f && s.s !== "sold") cls.push("lady");
+        if (s.pick && free) cls.push("pick");
+        const b = el("button", cls.join(" "));
+        b.type = "button";
+        b.append(el("b", "", String(s.n) + (s.f ? " " + s.f : "")));
+        b.append(el("small", "", s.s === "sold" ? "sold" : s.s === "selected" ? "selected"
+          : (typeof s.p === "number" ? "₹" + s.p.toLocaleString("en-IN") : "")));
+        const what = [d.deck + " deck", s.k === "sleeper" ? "berth" : "seat", s.w ? "window" : ""].filter(Boolean).join(", ");
+        b.title = `${s.n} · ${what}` + (s.f === "F" ? " · women only" : s.f === "M" ? " · men only" : "");
+        if (positioned && Number.isInteger(s.r) && Number.isInteger(s.c)) {
+          b.style.gridRow = String(s.r + 1);
+          b.style.gridColumn = String(s.c + 1);
+        }
+        if (free) b.addEventListener("click", () => say(`I'd like seat ${s.n} (${d.deck} deck).`));
+        else b.disabled = true;
+        grid.append(b);
+      }
+      box.append(grid);
+      decks.append(box);
+    }
+    app.append(decks);
+    const legend = el("div", "legend");
+    const item = (text, c, b) => { const s = el("span", "", text); s.style.setProperty("--c", c); s.style.setProperty("--b", b); legend.append(s); };
+    item("Free", "var(--free)", "var(--free-bg)");
+    item("Sold", "var(--sold)", "var(--sold-bg)");
+    item("Selected", "var(--sel)", "var(--sel-bg)");
+    item("Women/men only", "var(--lady)", "var(--lady-bg)");
+    item("Suggested", "var(--pick)", "transparent");
+    app.append(legend);
+    app.append(el("p", "hint", "Tap a free seat to choose it." +
+      (v.positions ? " Labels are positions; the site shows its own seat number once one is picked." : "")));
+  }
+
+  function renderBuses(v) {
+    for (const sec of Array.isArray(v.sections) ? v.sections : []) {
+      const box = el("div", "section");
+      const day = String(sec.title || "").split(" · ")[1] || "";
+      box.append(el("h2", "", sec.title || "Buses"));
+      for (const n of Array.isArray(sec.notes) ? sec.notes : []) box.append(el("p", "note", n));
+      const wrap = el("div", "wrap");
+      const t = el("table");
+      const head = el("tr");
+      for (const h of ["#", "Time", "Bus", "Fare", "Trust", "Note"]) head.append(el("th", "", h));
+      t.append(head);
+      for (const r of Array.isArray(sec.rows) ? sec.rows : []) {
+        const tr = el("tr", "pickable");
+        for (const c of [r.n, r.time, r.bus, r.fare, r.trust, r.note]) tr.append(el("td", "", c));
+        tr.title = "Show this bus's seats";
+        tr.addEventListener("click", () => {
+          const op = String(r.bus || "").split(" · ")[0];
+          const dep = String(r.time || "").split(" ")[0];
+          say(`Show me the seats on ${op} at ${dep}` + (day ? ` on ${day}.` : "."));
+        });
+        t.append(tr);
+      }
+      wrap.append(t);
+      box.append(wrap);
+      app.append(box);
+    }
+    app.append(el("p", "hint", "Tap a bus to see its seat map."));
+  }
+})();
+</script>
+</body>
+</html>

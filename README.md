@@ -564,7 +564,7 @@ source; the safety checker treats those domains as official.
 
 ---
 
-Version 0.8.2 · Python 3.10+ · FastMCP 4.1
+Version 0.9.0 · Python 3.10+ · FastMCP 4.1
 
 ## License
 

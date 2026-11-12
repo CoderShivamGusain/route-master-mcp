@@ -142,10 +142,12 @@ function waitLoad(tabId, ms = 30000) {
   });
 }
 
+// After a click: give the page a moment, and a new page up to 10 s to load. Every step must end well
+// inside the server's 60 s, or the next command queues behind it and times out too.
 async function settle(tabId) {
   await sleep(1500);
   const tab = await chrome.tabs.get(tabId);
-  if (tab.status === "loading") await waitLoad(tabId);
+  if (tab.status === "loading") await waitLoad(tabId, 10000);
   await sleep(1500);
 }
 
@@ -235,16 +237,19 @@ const safeToRetry = tabId => exec(tabId, () => {
 });
 
 async function waitFor(check, ms) {
-  for (let t = 0; t < ms; t += 500) { if (await check().catch(() => false)) return true; await sleep(500); }
+  const end = Date.now() + ms;
+  while (Date.now() < end) { if (await check().catch(() => false)) return true; await sleep(500); }
   return false;
 }
 
 async function openBus(tabId) {
+  const start = Date.now();
   const how = await realClick(tabId);
-  if (await waitFor(() => seatMapOpen(tabId), 8000)) return { clicked: how, seat_map: true };
-  if (how === "real" && await safeToRetry(tabId).catch(() => false)) {
+  if (await waitFor(() => seatMapOpen(tabId), 6000)) return { clicked: how, seat_map: true };
+  // Retry only with time to spare: the whole step must end well inside the server's 60 s.
+  if (how === "real" && Date.now() - start < 25000 && await safeToRetry(tabId).catch(() => false)) {
     try { await realClick(tabId, { trusted: false }); } catch { /* the button went away: check once more */ }
-    if (await waitFor(() => seatMapOpen(tabId), 8000)) return { clicked: "real+script", seat_map: true };
+    if (await waitFor(() => seatMapOpen(tabId), 6000)) return { clicked: "real+script", seat_map: true };
     return { clicked: "real+script", seat_map: false };
   }
   return { clicked: how, seat_map: false };

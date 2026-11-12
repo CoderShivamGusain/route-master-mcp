@@ -140,7 +140,29 @@ def _review_cases():
         '<input id="name" value="Ram Singh"><input name="otp" value="123456">'
         '<div><span>UPI ID</span><input id="v1" value="ram@upi"></div>'
     )
+    renamed = (
+        "<ul>"
+        + RB_CARD.format(n="up", dep="20:15", arr="01:00", op="UPSRTC - 1188")
+        + RB_CARD.format(n="rs", dep="20:15", arr="00:05", op="RSRTC - 211911")
+        + RB_CARD.format(n="ganesh", dep="21:00", arr="03:00", op="Shri Ganesh Travels")
+        + "</ul>"
+    )
     return {
+        "open_renamed": {
+            "html": renamed,
+            "url": rb_results,
+            "js": ps.open_bus_js("redBus", "RSRTC AC Sleeper", "20:15"),
+        },
+        "open_mmt_short_name": {
+            "html": mmt,
+            "url": "https://www.makemytrip.com/bus/search/A/B/02-11-2026",
+            "js": ps.open_bus_js("MakeMyTrip", "Beta", "21:45"),
+        },
+        "open_other_shri": {
+            "html": renamed,
+            "url": rb_results,
+            "js": ps.open_bus_js("redBus", "Shri Krishna Travels", "21:00"),
+        },
         "open_rb_exact": {"html": rb, "url": rb_results, "js": ps.open_bus_js("redBus", "Zingbus", "08:00")},
         "open_rb_short_time": {
             "html": rb,
@@ -198,3 +220,18 @@ def test_choose_points_refuses_shared_list_and_ambiguous_name(results):
 def test_capture_never_reads_otp_card_or_upi_fields(results):
     assert "inputs" not in results["capture_card_page"]["result"]  # a card field makes it a payment page
     assert [i["id"] for i in results["capture_otp_upi"]["result"]["inputs"]] == ["name"]
+
+
+def test_open_bus_never_guesses_but_names_the_buses_at_that_time(results):
+    """Live ChatGPT test, 12 Nov 2026: it asked for "RSRTC AC Sleeper"; redBus shows "RSRTC - 211911".
+    Guessing could open the wrong bus, so the step fails and lists the exact names at 20:15."""
+    r = results["open_renamed"]
+    assert (
+        r["marked"] is None
+        and "'RSRTC - 211911'" in r["result"]["error"]
+        and "'UPSRTC - 1188'" in r["result"]["error"]
+    )
+    assert "'Shri Ganesh Travels'" not in r["result"]["error"]  # another time
+    r = results["open_mmt_short_name"]
+    assert r["marked"] is None and "'Beta Travels'" in r["result"]["error"]
+    assert results["open_other_shri"]["marked"] is None

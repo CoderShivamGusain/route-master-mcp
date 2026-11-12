@@ -364,3 +364,24 @@ async def test_open_bus_says_so_when_no_seat_map_opens(server):
             c, "browser_action", {"action": "open_bus", "operator": "ReoBus Pro", "departure": "22:25"}
         )
         assert err and "reload it in chrome://extensions" in text  # an extension without click reports
+
+
+async def test_seat_map_comes_with_a_drawable_view(server):
+    """ChatGPT shows the text seat map poorly; apps that support MCP Apps draw the real map."""
+    from mcp_route_master.extension.view import VIEW_MIME, VIEW_URI
+
+    async with extension(server, RAM), app_client(server) as c:
+        tools = {t.name: t for t in await c.list_tools()}
+        for name in ("browser_open", "browser_read", "browser_action"):
+            meta = tools[name].meta or {}
+            assert meta["ui"]["resourceUri"] == VIEW_URI and meta["openai/outputTemplate"] == VIEW_URI
+        assert "ui" not in (tools["browser_fill"].meta or {})
+        page = (await c.read_resource(VIEW_URI))[0]
+        assert page.mime_type == VIEW_MIME and "<script>" in page.text
+        r = await c.call_tool("browser_open", {"url": "https://www.redbus.in/bus-tickets/delhi-to-manali"})
+        assert r.structured_content["kind"] == "buses" and r.structured_content["sections"][0]["rows"]
+        r = await c.call_tool(
+            "browser_action", {"action": "open_bus", "operator": "ReoBus Pro", "departure": "22:25"}
+        )
+        assert "## Seats: ReoBus Pro, 22:25" in r.content[0].text  # the text is still there for every AI
+        assert r.structured_content["kind"] == "seats" and r.structured_content["decks"]

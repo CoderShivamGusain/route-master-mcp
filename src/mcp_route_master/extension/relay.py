@@ -97,7 +97,8 @@ class Hub:
                 msg = await asyncio.wait_for(fut, max(deadline - loop.time(), 0.01))
             except asyncio.TimeoutError:
                 raise ExtensionFailed(
-                    f"Your browser didn't finish '{op}' in {int(timeout)} seconds."
+                    f"Your browser didn't finish '{op}' in {int(timeout)} seconds. It may still be finishing: "
+                    "wait a few seconds, then call browser_read to see the page."
                 ) from None
             except (RuntimeError, WebSocketDisconnect):
                 raise ExtensionOffline() from None

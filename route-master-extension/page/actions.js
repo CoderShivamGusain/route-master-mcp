@@ -226,9 +226,24 @@ globalThis.__rm = {
       c.__rmButton = b; return c; });
   }
   const hits = cards.filter(c => opLeaf(c) && firstTime(c) === want);
-  if (hits.length !== 1)
-    return JSON.stringify({error: hits.length ? hits.length + " buses match; tell the user and pick by hand"
-      : "bus not found on this page; scroll or use the site's filters, then try again"});
+  if (hits.length !== 1) {
+    if (hits.length) return JSON.stringify({error: hits.length + " buses match; tell the user and pick by hand"});
+    // Never guess (a wrong guess opens the wrong bus): name the buses at that time, so the AI can
+    // call again with the exact operator, e.g. "RSRTC - 211911" when it asked for "RSRTC AC Sleeper".
+    const nameOf = c => {
+      const t = leaves(c).map(([, x]) => x).filter(Boolean);
+      if (args.site === "redBus") {
+        const i = t.indexOf("Onwards");
+        return i >= 0 ? t.slice(i + 1).find(x => x !== "Ad") : null;
+      }
+      return t[0];
+    };
+    const same = cards.filter(c => firstTime(c) === want).map(nameOf).filter(Boolean).slice(0, 6);
+    return JSON.stringify({error: same.length
+      ? "no bus named '" + op + "' at " + want + "; at " + want + " this page has: " + same.map(n => "'" + n + "'").join(", ")
+        + ". Call again with the exact name of the one the user chose"
+      : "bus not found on this page; use the operator and time exactly as in the bus table"});
+  }
   mark(args.site === "redBus" ? opLeaf(hits[0]) : hits[0].__rmButton);
   return JSON.stringify({marked: true});
 })(),

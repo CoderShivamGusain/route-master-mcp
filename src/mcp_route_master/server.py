@@ -1326,8 +1326,8 @@ async def _read_results(c: Capture, site: str, route, bus_type, around_time, sor
     total = re.search(r"\b(\d+) buses\b", c.text)
     if total and site == "redBus" and int(total.group(1)) > len(buses):
         head.append(
-            f"_Read the {len(buses)} buses loaded so far of {total.group(1)}. For others, use the site's filters "
-            "(Sleeper, AC, time) or scroll, then capture again._"
+            f"_Read the {len(buses)} buses loaded so far of {total.group(1)}. For all of them, open this route's "
+            "MakeMyTrip link (it lists every bus), or use redBus's filters (Sleeper, AC, time)._"
         )
     if groups:
         head.append(

@@ -55,6 +55,10 @@ route-master window in your Chrome (behind your other windows), ranks the buses,
 map, picks your seat and stops, fills the form with your OK, shows a summary, and after your
 "confirm" opens the payment page in front for you to pay.
 
+In ChatGPT and Claude the seat map and the bus list also appear as a drawn picture (an MCP App):
+decks to scale, sold and women-only seats marked, the suggested seat highlighted. Tap a free seat or a
+bus row to ask for it. Gemini shows the same information as text.
+
 Use only this signed-in app for booking: turn off any older route-master app that points at `/mcp`,
 or the AI may pick it and send you to the site instead of opening the seat map.
 
@@ -109,7 +113,9 @@ Hosting your own server: change `SERVER_URL` in `config.js` and the server host 
   `python -m mcp_route_master.browser.extension_bundle`. A test fails if it's out of date.
 - `page/forms.js` (hand-written): fills the user's own details and picks options such as "Male"
   or "Don't add Free Cancellation". It refuses secret fields and payment pages.
-- Server side: `src/mcp_route_master/extension/` (`tokens.py`, `relay.py`, `app.py`).
+- Server side: `src/mcp_route_master/extension/` (`tokens.py`, `relay.py`, `app.py`, and
+  `view.py` + `view.html`: the `ui://route-master/view-v1.html` MCP App page that draws the seat map
+  and bus table from the tools' `structuredContent`).
 - Tests: `tests/integration/test_extension_app.py` (server, relay and tools with a fake
   extension), `tests/browser/test_extension_scripts.py` (the page scripts in Chromium),
   `tests/unit/test_extension_tokens.py`.

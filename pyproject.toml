@@ -1,6 +1,6 @@
 [project]
 name = "mcp-route-master"
-version = "0.8.2"
+version = "0.9.0"
 description = "MCP server that helps travellers in India find the right intercity bus, book it on official sites, and avoid booking scams. Works with Claude, ChatGPT and Gemini."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -46,4 +46,4 @@ ignore = ["E501"]  # long user-facing strings; the formatter handles code width
 
 [tool.uv]
 # Rebuild when source or data changes, so `uvx --from <folder>` picks up edits after a restart.
-cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.py" }, { file = "src/**/*.json" }]
+cache-keys = [{ file = "pyproject.toml" }, { file = "src/**/*.py" }, { file = "src/**/*.json" }, { file = "src/**/*.html" }]

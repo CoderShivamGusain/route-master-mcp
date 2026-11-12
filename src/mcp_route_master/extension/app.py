@@ -18,6 +18,7 @@ exactly as before.
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
@@ -26,8 +27,11 @@ from typing import Annotated, Any, Literal, get_args
 from urllib.parse import urlsplit
 
 from fastmcp import FastMCP
+from fastmcp.apps.config import AppConfig
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_access_token
+from fastmcp.tools.base import ToolResult
+from mcp.types import TextContent
 from pydantic import BaseModel, Field
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -51,6 +55,7 @@ from mcp_route_master.browser.pages import (
 from mcp_route_master.common.schema import opt, opt_list
 from mcp_route_master.extension.relay import ExtensionFailed, ExtensionOffline, Hub
 from mcp_route_master.extension.tokens import ExtensionTokens, SignInError, verify_google_id_token
+from mcp_route_master.extension.view import VIEW_MIME, VIEW_URI, page_view, view_html
 from mcp_route_master.http_options import build_middleware
 from mcp_route_master.places.dates import IST, mmt_date, redbus_date
 from mcp_route_master.trust.bus_types import BusPreference
@@ -63,8 +68,8 @@ route-master (signed in): finds intercity buses in India and books them on the o
 user's own Chrome, through the route-master extension. The user pays on that site themselves.
 
 Flow (one tool call per step; every browser_* tool returns what the page now shows):
-1. plan_bus_trip for the route and date (YYYY-MM-DD, India time). Then browser_open with its redBus
-   or MakeMyTrip link; pass around_time="HH:MM" when the user gives a time ("around 9 am" → 09:00)
+1. plan_bus_trip for the route and date (YYYY-MM-DD, India time). Then browser_open with its
+   MakeMyTrip link (it lists every bus; redBus shows only about 10 in a background window); pass around_time="HH:MM" when the user gives a time ("around 9 am" → 09:00)
    and bus_type when they ask for one: you get the ranked buses, those near their time first.
 2. User picks a bus → browser_action(action="open_bus", operator=..., departure=...): the seat map.
    Use the operator and HH:MM time exactly as in the table. Never send the user to the site
@@ -79,6 +84,10 @@ Flow (one tool call per step; every browser_* tool returns what the page now sho
    payment page opens in the user's Chrome. Tell them to pay there.
 If browser_status says the extension isn't connected, use the guided tools instead (plan_bus_trip
 links, rank_pasted_results, booking_steps with for_traveller=true).
+
+The seat map and bus table also appear as a picture in apps that can show one; still give the text.
+If a step fails or times out, call browser_read before trying again; never switch to web search or send
+the user to the site instead.
 
 Rules: never invent buses, prices or seats; show the tools' tables as they are, all rows (up to 10
 buses, plus tomorrow's when shown), never a shortened list; ask before typing
@@ -117,6 +126,29 @@ async def _send(hub: Hub, op: str, args: dict[str, Any] | None = None, timeout: 
         raise ToolError(f"The browser step didn't work: {exc}") from None
 
 
+log = logging.getLogger(__name__)
+
+# Tools whose answer the chat app can draw (seat map, bus table); ChatGPT also reads the alias.
+_VIEW = {
+    "meta": {
+        "ui": AppConfig(resource_uri=VIEW_URI).model_dump(by_alias=True, exclude_none=True),
+        "openai/outputTemplate": VIEW_URI,
+    }
+}
+
+
+def _with_view(text: str, capture: str, **read: Any) -> Any:
+    """The text answer, plus the drawable view when this is a seat or results page."""
+    try:
+        view = page_view(capture, text, read.get("seats_wanted"), read.get("preferences"))
+    except Exception:  # the picture is extra; never lose the text answer over it
+        log.warning("route-master view failed", exc_info=True)
+        view = None
+    if view is None:
+        return text
+    return ToolResult(content=[TextContent(type="text", text=text)], structured_content=view)
+
+
 def _site(capture: str) -> str | None:
     try:
         return site_of(load_capture(capture).url)
@@ -141,6 +173,13 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
     # These two hand the AI a script to run in its own browser. Here the user's Chrome does that
     # (browser_read / browser_action); offering both made ChatGPT pick page_action and give up.
     app.disable(names={"page_action", "read_page"}, components={"tool"})
+
+    @app.resource(
+        VIEW_URI, mime_type=VIEW_MIME, name="route-master view", description="Seat map and bus table."
+    )
+    def route_master_view() -> str:
+        return view_html()
+
     tool: Callable[..., Any] = partial(base._tool, server=app)
 
     @tool(
@@ -154,7 +193,7 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             return OFFLINE
         return f"Connected: Chrome signed in as {state['email']} (extension {state['version'] or '?'})."
 
-    @tool(annotations={**_BROWSER, "title": "Open a booking page in my browser"}, output_schema=None)
+    @tool(annotations={**_BROWSER, "title": "Open a booking page in my browser"}, output_schema=None, **_VIEW)
     async def browser_open(
         url: Annotated[
             str,
@@ -163,7 +202,7 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         bus_type: Annotated[BusPreference, Field(description="Results page: what the user wants.")] = "any",
         around_time: opt(str, description="Results page: preferred departure, HH:MM.", max_length=12) = None,
         sort_by: Annotated[SortBy, Field(description="Results page: how to sort.")] = "best",
-    ) -> str:
+    ) -> Any:
         """Open a redBus or MakeMyTrip page in the user's Chrome and return what it shows (e.g. ranked buses).
 
         Use this for live buses, seats and fares, never web search: only the page in the user's Chrome
@@ -176,22 +215,24 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         text = await _explain(out["capture"], **read)
         nxt = _next_day_if_few_left(out["capture"])
         if nxt is None:
-            return text
+            return _with_view(text, out["capture"])
         # Few buses still to leave today: read tomorrow's page in a background tab, so the user gets
         # enough choices. The booking tab stays on today's page.
         try:
             more = await _send(hub, "peek", {"url": nxt}, timeout=60)
         except ToolError:
-            return text  # an older extension without "peek", or the page didn't load: today's list is enough
+            return _with_view(text, out["capture"])  # an older extension, or the page didn't load
         tomorrow = await _explain(more["capture"], **read)
-        return (
+        both = (
             f"{text}\n\n---\n**Only a few buses are still to leave today, so here are tomorrow's too.** "
             f"To book one of these, call browser_open with {nxt} first.\n\n{tomorrow}"
         )
+        return _with_view(both, out["capture"])
 
     @tool(
         annotations={**_BROWSER, "readOnlyHint": True, "title": "Read the page in my browser"},
         output_schema=None,
+        **_VIEW,
     )
     async def browser_read(
         bus_type: Annotated[BusPreference, Field(description="Results page: what the user wants.")] = "any",
@@ -213,10 +254,10 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             max_length=6,
         ) = None,
         approved_fare: opt(float, description="Payment page: the fare the user confirmed.", ge=0) = None,
-    ) -> str:
+    ) -> Any:
         """Read the booking page open in the user's Chrome again (buses, seats, stops, form or payment)."""
         out = await _send(hub, "capture")
-        return await _explain(
+        text = await _explain(
             out["capture"],
             bus_type=bus_type,
             sort_by=sort_by,
@@ -228,8 +269,13 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             requested_seats=requested_seats,
             approved_fare=approved_fare,
         )
+        return _with_view(text, out["capture"], seats_wanted=seats_wanted, preferences=preferences)
 
-    @tool(annotations={**_BROWSER, "title": "Do the next booking step in my browser"}, output_schema=None)
+    @tool(
+        annotations={**_BROWSER, "title": "Do the next booking step in my browser"},
+        output_schema=None,
+        **_VIEW,
+    )
     async def browser_action(
         action: Annotated[Action, Field(description="The step to do on the page open in the user's Chrome.")],
         operator: opt(str, description="open_bus: operator name as shown.", max_length=120) = None,
@@ -266,7 +312,7 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         approved_fare: opt(
             float, description="Payment page shown next: the fare the user confirmed.", ge=0
         ) = None,
-    ) -> str:
+    ) -> Any:
         """Do one booking step in the user's Chrome (open a bus, pick seats or stops, decline extras,
         continue) and return what the page shows afterwards."""
         now = (await _send(hub, "capture"))["capture"]
@@ -351,7 +397,7 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             with contextlib.suppress(ToolError):
                 await _send(hub, "show", timeout=10)
             text += "\n\n_The payment page is now open in your Chrome window. Pay there yourself._"
-        return text
+        return _with_view(text, after, seats_wanted=seats_wanted)
 
     @tool(annotations={**_BROWSER, "title": "Type the user's details on the form"}, output_schema=None)
     async def browser_fill(
