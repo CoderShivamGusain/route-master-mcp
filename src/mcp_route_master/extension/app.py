@@ -93,6 +93,8 @@ The seat map and bus table also appear as a picture in apps that can show one; s
 If a step fails or times out, call browser_read before trying again; never switch to web search or send
 the user to the site instead.
 
+Seat maps come as tables (one per deck, a price in every free cell): show them to the user as they are.
+
 Rules: never invent buses, prices or seats; show the tools' tables as they are, all rows (up to 10
 buses, plus tomorrow's when shown), never a shortened list; ask before typing
 personal details; never type OTPs, passwords, card or UPI details and never pay; keep replies short.
@@ -153,6 +155,26 @@ def _with_view(text: str, capture: str, **read: Any) -> Any:
     return ToolResult(content=[TextContent(type="text", text=text)], structured_content=view)
 
 
+def _version(v: Any) -> tuple[int, ...]:
+    try:
+        return tuple(int(x) for x in str(v).split("."))
+    except ValueError:
+        return ()
+
+
+def _outdated(hub: Hub) -> str:
+    """A reload hint when the user's extension is older than this server (its page steps may be
+    missing fixes, e.g. telling apart two buses at one time). Empty when it's up to date."""
+    state = hub.status(_user())
+    have = state and state.get("version")
+    if not have or not _version(have) or _version(have) >= _version(__version__):
+        return ""
+    return (
+        f" Note: the user's route-master extension is v{have} and this server is v{__version__}; ask the "
+        "user to reload it once (chrome://extensions → route-master → ↻), then try again."
+    )
+
+
 def _site(capture: str) -> str | None:
     try:
         return site_of(load_capture(capture).url)
@@ -195,7 +217,10 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         state = hub.status(_user())
         if state is None:
             return OFFLINE
-        return f"Connected: Chrome signed in as {state['email']} (extension {state['version'] or '?'})."
+        return (
+            f"Connected: Chrome signed in as {state['email']} (extension {state['version'] or '?'})."
+            + _outdated(hub)
+        )
 
     @tool(annotations={**_BROWSER, "title": "Open a booking page in my browser"}, output_schema=None, **_VIEW)
     async def browser_open(
@@ -403,7 +428,10 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         result = out.get("result")
         if isinstance(result, dict) and result.get("error"):
             # Say plainly that the step didn't happen, so the AI doesn't guess why.
-            raise ToolError(f"The '{action}' step didn't work: {result['error']}. The page wasn't changed.")
+            raise ToolError(
+                f"The '{action}' step didn't work: {result['error']}. The page wasn't changed."
+                + _outdated(hub)
+            )
         note = _action_note(result)
         after = out["capture"]
         if action == "open_bus" and not _seat_map_open(after, site):

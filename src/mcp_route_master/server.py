@@ -68,18 +68,18 @@ from mcp_route_master.booking.ranking import (
     rank,
 )
 from mcp_route_master.booking.seats import (
+    TABLE_KEY,
     Front,
     Preference,
     Seat,
     deck_plan,
     describe,
-    draw,
     layout,
-    mixed,
     normalise_kind,
     normalise_reserved,
     normalise_status,
     suggest,
+    table,
 )
 from mcp_route_master.browser import scripts as page_scripts
 from mcp_route_master.browser.pages import (
@@ -867,25 +867,19 @@ async def explain_seat_map(
     out += [" · ".join(facts), ""]
     for d in decks:
         plan = deck_plan(d)
-        head = f"**{d.deck.title()} deck**" if len(decks) > 1 else ""
-        if plan:
-            head = f"{head} — {plan}" if head else f"_{plan}_"
-        if head:
-            out.append(head)
-        out += ["```", draw(d), "```"]
+        head = f"**{d.deck.title()} deck**" if len(decks) > 1 else "**Seats**"
+        out.append(f"{head} — {plan} · front of the bus at the top" if plan else f"{head} · front at the top")
+        out += [table(d), ""]
     out.append(
-        (
-            "`B` sleeper berth (lie down; as long as two seats) · `S` seat · "
-            if any(mixed(d) for d in decks)
-            else ""
-        )
-        + "`--` sold · `OK` selected"
-        + (" · F/M women/men only" if any(p.reserved_for for p in parsed) else "")
+        TABLE_KEY
         + (
             " · labels are positions; the site shows its own number once a seat is selected"
             if labels_are_positions or _is_makemytrip(site)
             else ""
         )
+    )
+    out.append(
+        "_For the assistant: show these seat tables exactly as they are (each free seat has its price)._"
     )
     prefs = list(preferences or [])
     if wanted > 1 and "together" not in prefs:

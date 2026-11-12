@@ -100,8 +100,9 @@ async def test_explain_seat_map_tool_draws_real_layout():
         )
     text = r.content[0].text
     assert "41 of 53 free · ₹547–₹697" in text
-    assert "[4 ₹697]  [3 ₹697]" in text and "[16M --]" in text
-    assert "[53 ₹547] [52 ₹547] [51 ₹547] [50 ₹547] [49 ₹547]" in text
+    assert "| 💺 **4** ₹697 | 💺 **3** ₹697 |   | 💺 **2** ₹697 | 💺 **1** ₹697 |" in text  # 2 + aisle + 2
+    assert "| ~~16~~ sold | ~~15~~ sold |" in text
+    assert "| 💺 **53** ₹547 | 💺 **52** ₹547 | 💺 **51** ₹547 | 💺 **50** ₹547 | 💺 **49** ₹547 |" in text
     assert "**Suggested (2):**" in text
 
 
@@ -152,7 +153,7 @@ async def test_explain_seat_map_accepts_nulls_and_two_decks():
             },
         )
     text = r.content[0].text
-    assert "**Lower deck**" in text and "**Upper deck**" in text and "[UB1F ₹1100]" in text
+    assert "**Lower deck**" in text and "**Upper deck**" in text and "🛏 **UB1** ♀ ₹1100" in text
 
 
 @pytest.mark.anyio

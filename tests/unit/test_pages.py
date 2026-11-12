@@ -150,7 +150,7 @@ async def test_read_page_results_ranks_and_notes_groups_and_partial_list():
 @pytest.mark.anyio
 async def test_read_page_seats_and_points():
     err, text = await read(REDBUS_SEATS, operator="Tiwari and Brothers", departure="17:00")
-    assert not err and "[3U OK]" in text and "## Seats: Tiwari and Brothers, 17:00 (redBus)" in text
+    assert not err and "✅ 3U" in text and "## Seats: Tiwari and Brothers, 17:00 (redBus)" in text
     err, text = await read(MMT_SEATS)
     assert "labels are positions" in text and "U3=6" in text and "seat **B**" in text and "Board at" in text
     err, text = await read(REDBUS_POINTS)

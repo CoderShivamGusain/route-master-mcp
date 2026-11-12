@@ -310,6 +310,59 @@ def draw(dl: DeckLayout) -> str:
     return "\n".join(lines)
 
 
+def _tcell(s: Seat | None, above: Seat | None) -> str:
+    """One table cell: '🛏 L1 ₹398', '💺 L4 ♀ ₹232', '~~L2~~ sold', '✅ L3'; '⋮' under a long berth."""
+    if s is None:
+        return "⋮" if above is not None and above.kind == "sleeper" else " "
+    icon = {"sleeper": "🛏", "seater": "💺", "semi_sleeper": "💺"}.get(s.kind, "")
+    flag = {"female": " ♀", "male": " ♂"}.get(s.reserved_for or "", "")
+    if s.status == "sold":
+        return f"~~{s.number}~~ sold"
+    if s.status == "selected":
+        return f"✅ {s.number}{flag}"
+    price = f" ₹{s.price:g}" if s.price is not None else ""
+    return f"{icon} **{s.number}**{flag}{price}".strip()
+
+
+def table(dl: DeckLayout) -> str:
+    """Markdown table of one deck (front at the top), one column per seat column plus the aisle.
+    Chat apps show tables as they are, so the layout and every price survive."""
+    if not dl.positioned:
+        return " · ".join(_tcell(s, None) for s in dl.seats)
+    grid: dict[tuple[int, int], Seat] = {(s.row, s.col): s for s in dl.seats}
+    empty = {a for a in dl.aisle_cols if a >= 0}
+    after = {-a - 1 for a in dl.aisle_cols if a < 0}
+    cols: list[int | None] = []  # None = an aisle column added between two seat columns
+    for c in range(dl.cols):
+        cols.append(c)
+        if c in after:
+            cols.append(None)
+
+    def head(c: int | None) -> str:
+        if c is None or c in empty:
+            return "aisle"
+        here = [s for s in dl.seats if s.col == c]
+        if any(s.single for s in here):
+            return "single (window)"
+        return "window" if c in (0, dl.cols - 1) else "aisle side"
+
+    lines = ["| " + " | ".join(head(c) for c in cols) + " |", "|" + "---|" * len(cols)]
+    for r in range(dl.rows):
+        cells = []
+        for c in cols:
+            if c is None or (c in empty and (r, c) not in grid):
+                cells.append(" ")
+            else:
+                cells.append(_tcell(grid.get((r, c)), grid.get((r - 1, c))))
+        lines.append("| " + " | ".join(cells) + " |")
+    return "\n".join(lines)
+
+
+TABLE_KEY = (
+    "🛏 sleeper berth (lie down) · 💺 seat · ♀/♂ women/men only · ✅ selected · ~~sold~~ · ⋮ same berth"
+)
+
+
 def suggest(
     seats: list[Seat], wanted: int, prefs: list[Preference], decks: list[DeckLayout]
 ) -> list[Seat] | None:

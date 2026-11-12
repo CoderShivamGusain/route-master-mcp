@@ -438,3 +438,18 @@ async def test_open_bus_passes_the_arrival_to_tell_twin_buses_apart(server):
         assert not err
         sent = next(a for op, a in fake.calls if op == "action")
         assert sent["args"]["arrival"] == "11:30"
+
+
+async def test_an_older_extension_is_pointed_out(server):
+    """Live, 12 Nov 2026: the server knew about arrival times but Chrome still ran the old extension."""
+    async with connect(f"ws://{server}/ext/ws") as ws:
+        await ws.send(
+            json.dumps({"type": "hello", "token": ExtensionTokens(KEY).issue(RAM), "version": "0.9.0"})
+        )
+        assert json.loads(await ws.recv())["type"] == "welcome"
+        async with app_client(server) as c:
+            err, text = await call(c, "browser_status")
+    assert "extension is v0.9.0" in text and "reload it once" in text
+    async with extension(server, RAM), app_client(server) as c:  # "test": not a version, no hint
+        err, text = await call(c, "browser_status")
+    assert "reload" not in text

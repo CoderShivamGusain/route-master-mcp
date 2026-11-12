@@ -74,7 +74,9 @@ async def test_mixed_deck_says_which_side_is_single_and_what_is_a_berth():
     assert (
         "**Upper deck** — left: single sleeper berths (window) · right: 2 sleeper berths side by side" in text
     )
-    assert "[L1 B ₹398]" in text and "[L7 S ₹232]" in text and "`B` sleeper berth" in text
+    assert "| 🛏 **L1** ₹398 |   | ~~L2~~ sold | ~~L3~~ sold |" in text  # berth | aisle | 2 seats
+    assert "| ⋮ |   | 💺 **L4** ♀ ₹232 | ~~L5~~ sold |" in text  # the berth is two seats long
+    assert "🛏 sleeper berth" in text and "each free seat has its price" in text
     assert "L1 (sleeper berth, single, window, lower deck" in text
     view = page_view(FLIXBUS, text)
     lower = view["decks"][0]

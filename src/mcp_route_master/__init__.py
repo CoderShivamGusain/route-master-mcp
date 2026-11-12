@@ -1,3 +1,3 @@
 """mcp-route-master: find the right intercity bus in India, book it safely."""
 
-__version__ = "0.10.1"
+__version__ = "0.10.2"
