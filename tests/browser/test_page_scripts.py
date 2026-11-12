@@ -199,6 +199,11 @@ def _review_cases():
             "js": ps.open_bus_js("MakeMyTrip", "Beta Travels", "21:45"),
         },
         "open_twins": {"html": twins, "url": rb_results, "js": ps.open_bus_js("redBus", "Laxmi", "21:00")},
+        "open_twins_by_arrival": {
+            "html": twins,
+            "url": rb_results,
+            "js": ps.open_bus_js("redBus", "Laxmi", "21:00", "09:30"),
+        },
         "continue_not_google": {
             "html": google,
             "url": "https://www.makemytrip.com/bus/review",
@@ -224,10 +229,11 @@ def test_open_bus_matches_exact_operator_and_departure(results):
     assert results["open_rb_exact"]["card"] == "right"  # not the 08:00 arrival, not "Zingbus Plus"
     assert results["open_rb_short_time"]["card"] == "right"  # 8:00 == 08:00, but not 18:00
     assert results["open_mmt_right_card"]["card"] == "beta"
-    assert (
-        "2 buses match" in results["open_twins"]["result"]["error"]
-        and results["open_twins"]["marked"] is None
-    )
+    twins = results["open_twins"]
+    assert twins["marked"] is None and "2 buses of 'laxmi' leave at 21:00" in twins["result"]["error"]
+    assert "arrives 09:00" in twins["result"]["error"] and "arrives 09:30" in twins["result"]["error"]
+    # Live, 12 Nov 2026: Laxmi Holidays ran two buses at 21:30; the arrival picks the one the user chose.
+    assert results["open_twins_by_arrival"]["card"] == "b"
 
 
 def test_continue_never_picks_login_and_refuses_to_guess(results):

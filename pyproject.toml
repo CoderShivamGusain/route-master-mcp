@@ -1,6 +1,6 @@
 [project]
 name = "mcp-route-master"
-version = "0.10.0"
+version = "0.10.1"
 description = "MCP server that helps travellers in India find the right intercity bus, book it on official sites, and avoid booking scams. Works with Claude, ChatGPT and Gemini."
 readme = "README.md"
 requires-python = ">=3.10"

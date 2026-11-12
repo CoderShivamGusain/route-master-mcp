@@ -224,7 +224,7 @@ globalThis.__rm = {
     el.scrollIntoView({ block: "center" });
   };
 
-  const op = String(args.operator || '').trim().toLowerCase(), dep = String(args.departure || '').trim();
+  const op = String(args.operator || '').trim().toLowerCase(), dep = String(args.departure || '').trim(), arr = String(args.arrival || '').trim();
   const hhmm = t => { const m = /^(\d{1,2}):(\d{2})$/.exec(t || ""); return m ? m[1].padStart(2, "0") + ":" + m[2] : null; };
   const want = hhmm(dep);
   const leaves = el => [...el.querySelectorAll("*")].filter(n => n.children.length === 0).map(n => [n, sq(n.textContent)]);
@@ -240,9 +240,19 @@ globalThis.__rm = {
       while (c.parentElement && [...btns].filter(x => c.parentElement.contains(x)).length === 1) c = c.parentElement;
       c.__rmButton = b; return c; });
   }
-  const hits = cards.filter(c => opLeaf(c) && firstTime(c) === want);
+  const times = el => [...sq(el.innerText).matchAll(/(\d{1,2}:\d{2})/g)].map(m => hhmm(m[1]));
+  let hits = cards.filter(c => opLeaf(c) && firstTime(c) === want);
+  if (hits.length > 1 && hhmm(arr)) {
+    const same = hits.filter(c => times(c)[1] === hhmm(arr));
+    if (same.length) hits = same;
+  }
   if (hits.length !== 1) {
-    if (hits.length) return JSON.stringify({error: hits.length + " buses match; tell the user and pick by hand"});
+    if (hits.length) {
+      const kind = c => (leaves(c).map(([, x]) => x).find(x => x.length < 60 && /seater|sleeper|volvo|a.c|\bac\b|electric|semi/i.test(x)) || "");
+      const list = hits.map(c => "arrives " + (times(c)[1] || "?") + (kind(c) ? ", " + kind(c) : "")).join("; ");
+      return JSON.stringify({error: hits.length + " buses of '" + op + "' leave at " + want + " (" + list
+        + "). Call again with arrival=HH:MM of the one the user chose"});
+    }
     // Never guess (a wrong guess opens the wrong bus): name the buses at that time, so the AI can
     // call again with the exact operator, e.g. "RSRTC - 211911" when it asked for "RSRTC AC Sleeper".
     const nameOf = c => {

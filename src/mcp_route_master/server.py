@@ -1151,6 +1151,11 @@ async def page_action(
     ) = None,
     operator: opt(str, description="open_bus: operator name as shown.", max_length=120) = None,
     departure: opt(str, description="open_bus: departure time as shown, HH:MM.", max_length=12) = None,
+    arrival: opt(
+        str,
+        description="open_bus: arrival time as shown, HH:MM (tells apart two buses at one time).",
+        max_length=12,
+    ) = None,
     seats: opt_list(
         str,
         {"type": "string", "maxLength": 8},
@@ -1187,7 +1192,7 @@ async def page_action(
             if not operator or not departure:
                 raise ToolError("open_bus needs the operator and the departure time.")
             js, then = (
-                page_scripts.open_bus_js(site, operator, departure),
+                page_scripts.open_bus_js(site, operator, departure, arrival),
                 _REAL_CLICK + " Then capture the seat map.",
             )
         elif action == "select_seats":

@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
+import re
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from functools import partial
@@ -73,8 +74,9 @@ Flow (one tool call per step; every browser_* tool returns what the page now sho
    MakeMyTrip link (it lists every bus); it also reads redBus for the same trip and ranks both together
    (the Book column says where each bus is: open that site's link before open_bus for a bus there); pass around_time="HH:MM" when the user gives a time ("around 9 am" → 09:00)
    and bus_type when they ask for one: you get the ranked buses, those near their time first.
-2. User picks a bus → browser_action(action="open_bus", operator=..., departure=...): the seat map.
-   Use the operator and HH:MM time exactly as in the table. Never send the user to the site
+2. User picks a bus → browser_action(action="open_bus", operator=..., departure=..., arrival=...): the
+   seat map. Use the operator and HH:MM times exactly as in the table (arrival tells apart two buses
+   of one operator at the same time). Never send the user to the site
    instead: if it fails, follow the tool's error message.
 3. User picks seats → browser_action(action="select_seats", seats=[...]); then "continue".
 4. Boarding/drop points → browser_action(action="choose_points", boarding=..., dropping=...); "continue".
@@ -301,6 +303,12 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         action: Annotated[Action, Field(description="The step to do on the page open in the user's Chrome.")],
         operator: opt(str, description="open_bus: operator name as shown.", max_length=120) = None,
         departure: opt(str, description="open_bus: departure time as shown, HH:MM.", max_length=12) = None,
+        arrival: opt(
+            str,
+            description="open_bus: arrival time as shown, HH:MM. Always pass it: it tells apart two buses of one "
+            "operator at the same time.",
+            max_length=12,
+        ) = None,
         seats: opt_list(
             str,
             {"type": "string", "maxLength": 8},
@@ -374,6 +382,13 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
                     f"Can't read the departure time '{departure}'; pass it as HH:MM, e.g. 00:50."
                 ) from None
             args.update(operator=operator, departure=departure)
+            if arrival:
+                try:
+                    args["arrival"] = fmt_clock(
+                        parse_clock(re.sub(r"\s*\+\d+$", "", arrival.strip()))
+                    )  # "03:25 +1"
+                except TimeFormatError:
+                    pass  # only a tie-breaker; a bad value just isn't used
         elif action == "select_seats":
             if not (seats or seat_indexes):
                 raise ToolError("Say which seats: seats (redBus) or seat_indexes (MakeMyTrip).")

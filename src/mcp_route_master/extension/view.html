@@ -216,7 +216,8 @@
         tr.addEventListener("click", () => {
           const op = String(r.bus || "").split(" · ")[0];
           const dep = String(r.time || "").split(" ")[0];
-          say(`Show me the seats on ${op} at ${dep}` + (day ? ` on ${day}` : "") + (r.site ? ` (${r.site})` : "") + ".");
+          const arr = (String(r.time || "").split("→")[1] || "").trim().split(" ")[0];
+          say(`Show me the seats on ${op} at ${dep}` + (arr ? ` (arriving ${arr})` : "") + (day ? ` on ${day}` : "") + (r.site ? ` (${r.site})` : "") + ".");
         });
         t.append(tr);
       }

@@ -251,14 +251,16 @@ def _hhmm(departure: str) -> str:
         return departure.strip()
 
 
-def open_bus_js(site: str, operator: str, departure: str) -> str:
+def open_bus_js(site: str, operator: str, departure: str, arrival: str | None = None) -> str:
     """Mark the bus card (redBus) or its SELECT SEATS button (MakeMyTrip) for a real click.
 
     A card matches only if its operator text equals `operator` (not just contains it) and its
-    *first* time is `departure` (so an 08:00 arrival doesn't match an 08:00 departure). Zero or
-    several matches is an error: the AI must not open the wrong bus."""
+    *first* time is `departure` (so an 08:00 arrival doesn't match an 08:00 departure). When one
+    operator runs two buses at that time (live: Laxmi Holidays 21:30, a Volvo arriving 02:00 and a
+    Bharat Benz arriving 03:25), `arrival` (the card's second time) picks one. Zero or several
+    matches is an error that lists the candidates: the AI must not open the wrong bus."""
     return f"""(() => {{{_REPORT}{_MARK}
-  const op = {_js(operator.strip().lower())}, dep = {_js(_hhmm(departure))};
+  const op = {_js(operator.strip().lower())}, dep = {_js(_hhmm(departure))}, arr = {_js(_hhmm(arrival or ""))};
   const hhmm = t => {{ const m = /^(\\d{{1,2}}):(\\d{{2}})$/.exec(t || ""); return m ? m[1].padStart(2, "0") + ":" + m[2] : null; }};
   const want = hhmm(dep);
   const leaves = el => [...el.querySelectorAll("*")].filter(n => n.children.length === 0).map(n => [n, sq(n.textContent)]);
@@ -274,9 +276,19 @@ def open_bus_js(site: str, operator: str, departure: str) -> str:
       while (c.parentElement && [...btns].filter(x => c.parentElement.contains(x)).length === 1) c = c.parentElement;
       c.__rmButton = b; return c; }});
   }}
-  const hits = cards.filter(c => opLeaf(c) && firstTime(c) === want);
+  const times = el => [...sq(el.innerText).matchAll(/(\\d{{1,2}}:\\d{{2}})/g)].map(m => hhmm(m[1]));
+  let hits = cards.filter(c => opLeaf(c) && firstTime(c) === want);
+  if (hits.length > 1 && hhmm(arr)) {{
+    const same = hits.filter(c => times(c)[1] === hhmm(arr));
+    if (same.length) hits = same;
+  }}
   if (hits.length !== 1) {{
-    if (hits.length) return JSON.stringify({{error: hits.length + " buses match; tell the user and pick by hand"}});
+    if (hits.length) {{
+      const kind = c => (leaves(c).map(([, x]) => x).find(x => x.length < 60 && /seater|sleeper|volvo|a.c|\\bac\\b|electric|semi/i.test(x)) || "");
+      const list = hits.map(c => "arrives " + (times(c)[1] || "?") + (kind(c) ? ", " + kind(c) : "")).join("; ");
+      return JSON.stringify({{error: hits.length + " buses of '" + op + "' leave at " + want + " (" + list
+        + "). Call again with arrival=HH:MM of the one the user chose"}});
+    }}
     // Never guess (a wrong guess opens the wrong bus): name the buses at that time, so the AI can
     // call again with the exact operator, e.g. "RSRTC - 211911" when it asked for "RSRTC AC Sleeper".
     const nameOf = c => {{

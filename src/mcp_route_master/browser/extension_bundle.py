@@ -11,7 +11,7 @@ world:
     __rm.select_seats({site, seats, seat_indexes})    → JSON string
     __rm.choose_points({site, boarding, dropping})
     __rm.decline_addons({})
-    __rm.open_bus({site, operator, departure})        → marks the bus for a real click
+    __rm.open_bus({site, operator, departure, arrival}) → marks the bus for a real click
     __rm.continue({site})                             → marks the next-step button
 
 Regenerate after changing scripts.py:  python -m mcp_route_master.browser.extension_bundle
@@ -58,11 +58,12 @@ def build() -> str:
         {**site, _q("b"): "String(args.boarding || '')", _q("d"): "String(args.dropping || '')"},
     )
     open_bus = _sub(
-        ps.open_bus_js(f"{_P}site__", f"{_P}op__", f"{_P}dep__"),
+        ps.open_bus_js(f"{_P}site__", f"{_P}op__", f"{_P}dep__", f"{_P}arr__"),
         {
             **site,
             json.dumps(f"{_P}op__".lower()): "String(args.operator || '').trim().toLowerCase()",
             _q("dep"): "String(args.departure || '').trim()",
+            _q("arr"): "String(args.arrival || '').trim()",
         },
     )
     parts = [

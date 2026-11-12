@@ -421,3 +421,20 @@ async def test_merge_keeps_two_buses_of_one_operator_at_the_same_time(server):
     elsewhere["url"] = "https://www.makemytrip.com/bus/search/Delhi/Shimla/" + mmt_date(TRAVEL)
     text = await read_results_pages([json.dumps(rb), json.dumps(elsewhere)])
     assert "RTH STAR BUS" not in text  # another route's page is never mixed in
+
+
+async def test_open_bus_passes_the_arrival_to_tell_twin_buses_apart(server):
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        err, _ = await call(
+            c,
+            "browser_action",
+            {
+                "action": "open_bus",
+                "operator": "Tiwari and Brothers",
+                "departure": "17:00",
+                "arrival": "11:30 +1",
+            },
+        )
+        assert not err
+        sent = next(a for op, a in fake.calls if op == "action")
+        assert sent["args"]["arrival"] == "11:30"
