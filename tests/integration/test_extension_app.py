@@ -298,7 +298,7 @@ async def test_open_bus_accepts_12_hour_times_and_reports_failures(server):
         err, text = await call(
             c, "browser_action", {"action": "open_bus", "operator": "FlixBus", "departure": "1:00 AM"}
         )
-        assert err and "didn't work: bus not found on this page" in text and "wasn't changed" in text
+        assert err and "didn't work: bus not found on this page" in text and "No bus was opened" in text
         err, text = await call(
             c, "browser_action", {"action": "open_bus", "operator": "FlixBus", "departure": "late"}
         )
@@ -600,3 +600,68 @@ async def test_seat_map_that_draws_late_is_waited_for(server, monkeypatch):
         assert err and "still loading" in text and "browser_read" in text
         err, text = await call(c, "browser_read")
         assert err and "still loading" in text
+
+
+class TwoSites:
+    """A booking window that can show redBus or MakeMyTrip for Delhi → Manali; the bus is on redBus only."""
+
+    def __init__(self):
+        self.tab = "MakeMyTrip"
+        self.mmt = json.loads(json.dumps(MMT_RESULTS))
+        self.mmt["url"] = "https://www.makemytrip.com/bus/search/Delhi/Manali/" + mmt_date(TRAVEL)
+        self.ops = []
+
+    def __call__(self, op, args):
+        self.ops.append((op, self.tab))
+        if op == "open":
+            self.tab = "redBus" if "redbus" in args["url"] else "MakeMyTrip"
+        if op == "action":
+            if self.tab == "redBus":
+                return {
+                    "result": {"marked": True},
+                    "click": {"clicked": "script"},
+                    "capture": json.dumps(REDBUS_SEATS),
+                }
+            return {
+                "result": {
+                    "error": "bus not found on this page; use the operator and time exactly as in the bus table"
+                },
+                "capture": json.dumps(self.mmt),
+            }
+        return {"capture": json.dumps(REDBUS_RESULTS if self.tab == "redBus" else self.mmt)}
+
+
+async def test_open_bus_switches_to_the_bus_site_itself(server):
+    """Live ChatGPT test, 12 Nov 2026: LEAFYBUS was listed from the other site; the AI opened that
+    site but never opened the bus, and gave up. Now open_bus is one call."""
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        fake.answer = sites = TwoSites()
+        err, text = await call(
+            c,
+            "browser_action",
+            {
+                "action": "open_bus",
+                "operator": "Tiwari and Brothers",
+                "departure": "17:00",
+                "bus_site": "redBus",
+            },
+        )
+        assert not err and "## Seats: Tiwari and Brothers, 17:00 (redBus)" in text
+        assert [o for o, _ in sites.ops] == [
+            "capture",
+            "open",
+            "action",
+        ]  # switched first, then opened the bus
+        assert sites.ops[-1] == ("action", "redBus")
+
+
+async def test_open_bus_looks_on_the_other_site_when_not_told_which(server):
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        fake.answer = sites = TwoSites()
+        err, text = await call(
+            c,
+            "browser_action",
+            {"action": "open_bus", "operator": "Tiwari and Brothers", "departure": "17:00"},
+        )
+        assert not err and "## Seats: Tiwari and Brothers" in text
+        assert [o for o, _ in sites.ops] == ["capture", "action", "open", "action"]

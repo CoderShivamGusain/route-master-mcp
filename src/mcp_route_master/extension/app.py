@@ -87,10 +87,11 @@ user's own Chrome, through the route-master extension. The user pays on that sit
 Flow (one tool call per step; every browser_* tool returns what the page now shows):
 1. plan_bus_trip for the route and date (YYYY-MM-DD, India time). Then browser_open with its
    MakeMyTrip link (it lists every bus); it also reads redBus for the same trip and ranks both together
-   (the Book column says where each bus is: open that site's link before open_bus for a bus there); pass around_time="HH:MM" when the user gives a time ("around 9 am" → 09:00)
+   (the Book column says where each bus is); pass around_time="HH:MM" when the user gives a time ("around 9 am" → 09:00)
    and bus_type when they ask for one: you get the ranked buses, those near their time first.
-2. User picks a bus → browser_action(action="open_bus", operator=..., departure=..., arrival=...): the
-   seat map. Use the operator and HH:MM times exactly as in the table (arrival tells apart two buses
+2. User picks a bus → browser_action(action="open_bus", operator=..., departure=..., arrival=...,
+   bus_site=<its Book column site>): the seat map. One call: route-master opens the right site itself,
+   so never call browser_open again for this. Use the operator and HH:MM times exactly as in the table (arrival tells apart two buses
    of one operator at the same time). Never send the user to the site
    instead: if it fails, follow the tool's error message.
 3. User picks seats → browser_action(action="select_seats", seats=[...]); then "continue".
@@ -345,8 +346,9 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
                 if merged:
                     here = _site(out["capture"])
                     text = (
-                        f"{merged}\n\n_Buses from redBus and MakeMyTrip. The booking window shows {here}; "
-                        f"to book a bus listed on the other site, first call browser_open with {other}._"
+                        f"{merged}\n\n_Buses from redBus and MakeMyTrip (the booking window shows {here}). For "
+                        "any bus, call browser_action open_bus with bus_site = the site in its Book column; "
+                        "route-master switches site itself._"
                     )
             except Exception:  # the merged list is extra; never lose this site's answer over it
                 log.warning("merging the other site's buses failed", exc_info=True)
@@ -423,6 +425,12 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             description="open_bus: arrival time as shown, HH:MM. Always pass it: it tells apart two buses of one "
             "operator at the same time.",
             max_length=12,
+        ) = None,
+        bus_site: opt(
+            str,
+            description="open_bus: the site in the bus's Book column, redBus or MakeMyTrip. route-master switches "
+            "the booking window to that site itself.",
+            max_length=20,
         ) = None,
         seats: opt_list(
             str,
@@ -517,28 +525,59 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             if not boarding or not dropping:
                 raise ToolError("choose_points needs both the boarding and the drop point.")
             args.update(boarding=boarding, dropping=dropping)
-        try:
-            out = await _send(
-                hub, "action", {"name": action, "args": args, "click": action in _CLICKS}, timeout=60
-            )
-        except StepTimeout:
-            # The click may well have worked and the site is just slow: wait, then read the page.
-            cap = await _recapture(hub)
-            if cap is None:
-                raise ToolError(SLOW) from None
-            out = {"result": {}, "click": {"clicked": "unknown", "timed_out": True}, "capture": cap}
-            slow_note = (
-                f"_The '{action}' step was slow; this is the page now. Check it shows what was asked "
-                "before repeating the step (repeating a seat click would undo it)._"
-            )
+
+        async def step() -> tuple[dict[str, Any], str]:
+            try:
+                return await _send(
+                    hub, "action", {"name": action, "args": args, "click": action in _CLICKS}, timeout=60
+                ), ""
+            except StepTimeout:
+                # The click may well have worked and the site is just slow: wait, then read the page.
+                cap = await _recapture(hub)
+                if cap is None:
+                    raise ToolError(SLOW) from None
+                return {"result": {}, "click": {"clicked": "unknown", "timed_out": True}, "capture": cap}, (
+                    f"_The '{action}' step was slow; this is the page now. Check it shows what was asked "
+                    "before repeating the step (repeating a seat click would undo it)._"
+                )
+
+        if action == "open_bus":
+            # The bus list mixes redBus and MakeMyTrip, but the booking window shows one site. Go to
+            # the list on the bus's site first (live, 12 Nov 2026: the AI didn't, and gave up).
+            links = _trip_links(now)
+            want = _SITES.get((bus_site or "").strip().lower().replace(" ", ""))
+            goto = None
+            if want and want != site and want in links:
+                goto = want
+            elif site == "redBus" and site in links and page_kind(load_capture(now), site) == "seats":
+                goto = site  # another bus's seat page is open: back to the list
+            if goto:
+                now, site = await _open_list(hub, links[goto], goto), goto
+                args["site"] = site
+            out, slow_note = await step()
+            first = out.get("result")
+            other = next((x for x in links if x != site), None)
+            if (
+                isinstance(first, dict)
+                and re.search(r"not found|no bus named", str(first.get("error") or ""))
+                and other
+                and not goto
+            ):
+                # Not on this site's page: it's probably the other site's bus. Look there once.
+                await _open_list(hub, links[other], other)
+                args["site"] = other
+                second, note2 = await step()
+                if not (isinstance(second.get("result"), dict) and second["result"].get("error")):
+                    out, slow_note, site = second, note2, other
+                else:
+                    first["error"] = f"{first['error']} (also not found on {other})"
         else:
-            slow_note = ""
+            out, slow_note = await step()
         result = out.get("result")
         if isinstance(result, dict) and result.get("error"):
             # Say plainly that the step didn't happen, so the AI doesn't guess why.
             raise ToolError(
-                f"The '{action}' step didn't work: {result['error']}. The page wasn't changed."
-                + _outdated(hub)
+                f"The '{action}' step didn't work: {result['error']}. No bus was opened." + _outdated(hub)
             )
         note = " ".join(x for x in (_action_note(result), slow_note) if x)
         after = await _await_seats(hub, out["capture"])
@@ -625,6 +664,43 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
 
 
 FEW_LEFT = 10  # fewer buses than this still to leave today → also show tomorrow's
+
+
+_SITES = {"redbus": "redBus", "makemytrip": "MakeMyTrip", "mmt": "MakeMyTrip"}
+
+
+def _trip_links(capture: str) -> dict[str, str]:
+    """Each site's dated results link for the trip this page (bus list or seat map) is about."""
+    try:
+        c = load_capture(capture)
+    except CaptureError:
+        return {}
+    site = site_of(c.url)
+    if site is None or page_kind(c, site) not in ("results", "seats"):
+        return {}
+    route = route_of(c, site)
+    if not route.origin or not route.destination or not route.travel_date:
+        return {}
+    r = base.get_resolver()
+    ro, rd = r.resolve(route.origin), r.resolve(route.destination)
+    if not all(x.ok and not x.fuzzy and not x.assumed for x in (ro, rd)):
+        return {}
+    return {
+        x.platform: x.url
+        for x in build_links(r, ro.hub, rd.hub, route.travel_date)
+        if x.platform in ("redBus", "MakeMyTrip") and x.kind == "dated_search"
+    }
+
+
+async def _open_list(hub: Hub, url: str, site: str) -> str:
+    """Show this site's bus list in the booking window; returns the page read."""
+    try:
+        return (await _send(hub, "open", {"url": url}, timeout=60))["capture"]
+    except StepTimeout:
+        cap = await _recapture(hub, tries=1, timeout=25)
+        if cap is None or _site(cap) != site:
+            raise ToolError(SLOW) from None
+        return cap
 
 
 def _other_site_link(capture: str) -> str | None:
