@@ -144,7 +144,8 @@ async def test_signed_in_server_needs_a_token(server):
     assert r.status_code == 401  # (with Google sign-in it also points to the sign-in metadata)
     async with app_client(server) as c:
         names = {t.name for t in await c.list_tools()}
-    assert {"browser_open", "browser_action", "browser_fill", "plan_bus_trip", "read_page"} <= names
+    assert {"browser_open", "browser_action", "browser_fill", "plan_bus_trip", "rank_buses"} <= names
+    assert not names & {"page_action", "read_page"}  # the user's Chrome runs the page steps here
 
 
 async def test_offline_extension_is_explained(server):
@@ -342,3 +343,24 @@ async def test_browser_open_adds_tomorrows_buses_when_few_are_left(server, monke
         del fake.pages["tomorrow"]  # an older extension, or tomorrow's page didn't load
         err, text = await call(c, "browser_open", {"url": REDBUS_RESULTS["url"]})
         assert not err and "ReoBus Pro" in text and "tomorrow's too" not in text
+
+
+async def test_open_bus_says_so_when_no_seat_map_opens(server):
+    """Live ChatGPT test, 12 Nov 2026: the click didn't open the seat map, the AI got the unchanged
+    list back and sent the user to the site. Now it's an error that says what to do."""
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        fake.answer = lambda op, args: {
+            "result": {"marked": True} if op == "action" else None,
+            "click": {"clicked": "real", "seat_map": False},
+            "capture": json.dumps(REDBUS_RESULTS),
+        }
+        err, text = await call(
+            c, "browser_action", {"action": "open_bus", "operator": "ReoBus Pro", "departure": "22:25"}
+        )
+        assert err and "no seat map opened" in text and "browser_show" in text
+        assert "reload it" not in text
+        fake.answer = lambda op, args: {"result": {"marked": True}, "capture": json.dumps(REDBUS_RESULTS)}
+        err, text = await call(
+            c, "browser_action", {"action": "open_bus", "operator": "ReoBus Pro", "departure": "22:25"}
+        )
+        assert err and "reload it in chrome://extensions" in text  # an extension without click reports

@@ -419,3 +419,31 @@ async def test_rank_buses_accepts_explicit_nulls():
             raise_on_error=False,
         )
     assert not r.is_error
+
+
+def test_around_time_lists_buses_near_it_first(links):
+    """Live ChatGPT test, 12 Nov 2026 ("around 9 am"): better-rated evening buses filled the top 10
+    and pushed out the morning ones."""
+    listings = [bus(f"Night {h}", f"{h}:00", rating=4.9, review_count=900) for h in range(17, 24)]
+    listings += [
+        bus("Early", "06:00", rating=3.0, review_count=10),
+        bus("Morning", "09:30", rating=3.2, review_count=20),
+        bus("Noon", "12:00", rating=2.9, review_count=5),
+    ]
+    ranked, _, _ = rank(listings, D + timedelta(days=1), links, now=NOW, around_time="09:00")
+    assert [r.listing.operator for r in ranked[:3]] == ["Morning", "Early", "Noon"]
+    assert all(r.near for r in ranked[:3]) and not any(r.near for r in ranked[3:])
+    ranked, _, _ = rank(listings, D + timedelta(days=1), links, now=NOW)
+    assert ranked[0].listing.operator.startswith("Night") and ranked[0].near is None
+
+
+def test_near_time_never_lifts_a_clear_mismatch_above_the_asked_type(links):
+    listings = [
+        bus("Seater", "09:15", bus_type="Bharat Benz Non A/C Seater (3+2)", rating=4.8, review_count=900),
+        bus("Sleeper near", "11:00", bus_type="A/C Sleeper (2+1)", rating=3.5, review_count=50),
+        bus("Sleeper far", "21:00", bus_type="A/C Sleeper (2+1)", rating=4.8, review_count=900),
+    ]
+    ranked, _, _ = rank(
+        listings, D + timedelta(days=1), links, preference="sleeper", now=NOW, around_time="09:00"
+    )
+    assert [r.listing.operator for r in ranked] == ["Sleeper near", "Sleeper far", "Seater"]

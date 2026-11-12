@@ -57,6 +57,7 @@ from mcp_route_master.booking.guide import build as guide_build
 from mcp_route_master.booking.guide import inputs_for, traveller_steps
 from mcp_route_master.booking.ranking import (
     MAX_SHOWN,
+    NEAR_MINUTES,
     Listing,
     Ranked,
     SortBy,
@@ -616,6 +617,11 @@ def format_ranking(
         out.append(f"_None of these is clearly {wanted}; they're ranked as the closest options._")
         for r in ranked:
             r.notes = [n for n in r.notes if n != f"not {wanted}"]
+    near = sum(1 for r in ranked if r.near)
+    if near:  # (when none is near, rank_buses says which bus is closest)
+        out.append(
+            f"_{near} of these leave within {NEAR_MINUTES // 60} hours of your time; they're listed first._"
+        )
     if shown:
         top = next((r for r in shown if not r.tight), shown[0])
         why = [
@@ -748,7 +754,7 @@ async def rank_buses(
     text = format_ranking(origin_res.hub, dest_res.hub, d, ranked, departed, bad, sort_by, bus_type)
     if target is not None and ranked:
         gaps = [min(abs(r.depart_min - target), 1440 - abs(r.depart_min - target)) for r in ranked]
-        if min(gaps) >= 180:
+        if min(gaps) > NEAR_MINUTES:
             closest = ranked[gaps.index(min(gaps))]
             note = (
                 f"_No bus leaves near {fmt_clock(target)}; the closest is "
@@ -1071,7 +1077,8 @@ async def booking_steps(
     out = [
         title,
         "_For the assistant: follow these steps; don't paste them to the user. On redBus and MakeMyTrip, use "
-        "page_action + read_page on each page instead of reading or clicking the page yourself._",
+        "browser_action / browser_read if you have them, otherwise page_action + read_page on each page, instead "
+        "of reading or clicking the page yourself._",
     ]
     if start and start.kind == "dated_search":
         out.append(f"Start here: [{start.platform}]({start.url}) (opens this route and date).")
@@ -1394,7 +1401,7 @@ async def _read_seats(c: Capture, site: str, operator, departure, seats_wanted, 
     if site == "MakeMyTrip":
         free = [s for s in seats if s.status != "sold"]
         out.append(
-            "_For the assistant: click numbers for page_action select_seats: "
+            "_For the assistant: seat_indexes (click numbers) for select_seats: "
             + ", ".join(f"{s.number}={s.dom_index}" for s in free)
             + "._"
         )

@@ -161,33 +161,93 @@ async function capture(tabId) {
   return exec(tabId, () => globalThis.__rm.capture({}));
 }
 
-// A real (trusted) mouse click on the element the page script marked: some sites ignore
-// clicks made by scripts. Chrome briefly shows "route-master started debugging this browser".
-async function realClick(tabId) {
+// Click the element the page script marked. A real (trusted) mouse click when the tab is visible,
+// because some sites ignore clicks made by scripts (Chrome briefly shows "route-master started
+// debugging this browser"). Chrome doesn't deliver real clicks to a hidden, minimized or covered
+// window, so there the click is made by script. Returns how it clicked.
+const withTimeout = (p, ms, what) => Promise.race([p, sleep(ms).then(() => { throw new Error(what); })]);
+
+function scriptClick() {
+  const el = document.querySelector("[data-rm-target]");
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  const at = { bubbles: true, cancelable: true, view: window, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+  for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup"]) {
+    el.dispatchEvent(new (type.startsWith("pointer") ? PointerEvent : MouseEvent)(type, at));
+  }
+  el.click();
+  return true;
+}
+
+async function realClick(tabId, { trusted = true } = {}) {
   const point = await exec(tabId, () => {
     const el = document.querySelector("[data-rm-target]");
     if (!el) return null;
     el.scrollIntoView({ block: "center" });
     const r = el.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, hidden: document.visibilityState !== "visible" };
   });
   if (!point) throw new Error("Nothing to click on this page.");
+  const byScript = async () => {
+    if (!(await exec(tabId, scriptClick))) throw new Error("Nothing to click on this page.");
+    return "script";
+  };
+  if (!trusted || point.hidden) return byScript();
   const target = { tabId };
+  const detach = () => withTimeout(chrome.debugger.detach(target), 3000, "detach timed out").catch(() => {});
+  const attaching = chrome.debugger.attach(target, "1.3");
   try {
-    await chrome.debugger.attach(target, "1.3");
+    await withTimeout(attaching, 5000, "attach timed out");
   } catch {
-    // DevTools open or debugging refused: fall back to a normal click.
-    await exec(tabId, () => document.querySelector("[data-rm-target]")?.click());
-    return;
+    attaching.then(detach, () => {}); // if it attaches late, let go of it
+    return byScript(); // DevTools open, debugging refused, or too slow
   }
   try {
     const base = { x: point.x, y: point.y, button: "left", clickCount: 1 };
-    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { ...base, type: "mouseMoved", button: "none" });
-    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { ...base, type: "mousePressed" });
-    await chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { ...base, type: "mouseReleased" });
+    const send = (type, extra = {}) => withTimeout(
+      chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { ...base, type, ...extra }), 5000,
+      "Chrome didn't deliver the click; keep the route-master window open (not minimized) and try again.");
+    try {
+      await send("mouseMoved", { button: "none" });
+    } catch {
+      await detach();
+      return byScript(); // nothing was pressed yet, so a script click can't double up
+    }
+    await send("mousePressed");
+    await send("mouseReleased");
+    return "real";
   } finally {
-    await chrome.debugger.detach(target).catch(() => {});
+    await detach();
   }
+}
+
+// open_bus: wait for the seat map. If a real click didn't open it, try once by script, but only
+// when the button is still there unchanged and nothing is loading (else the map may be on its way,
+// and a second click would close it).
+const seatMapOpen = tabId => exec(tabId, () =>
+  !!document.querySelector('[data-testid^="seat_"], [aria-label^="Seat number"]') || /[?&]step=/.test(location.search));
+const safeToRetry = tabId => exec(tabId, () => {
+  const el = document.querySelector("[data-rm-target]");
+  if (!el || !el.isConnected) return false;
+  const card = el.closest("li") || el.parentElement;
+  const loading = card && card.querySelector('[class*="loader" i], [class*="spinner" i], [class*="shimmer" i]');
+  return !loading && (location.host.includes("makemytrip") ? /^select seats$/i.test(el.textContent.trim()) : true);
+});
+
+async function waitFor(check, ms) {
+  for (let t = 0; t < ms; t += 500) { if (await check().catch(() => false)) return true; await sleep(500); }
+  return false;
+}
+
+async function openBus(tabId) {
+  const how = await realClick(tabId);
+  if (await waitFor(() => seatMapOpen(tabId), 8000)) return { clicked: how, seat_map: true };
+  if (how === "real" && await safeToRetry(tabId).catch(() => false)) {
+    try { await realClick(tabId, { trusted: false }); } catch { /* the button went away: check once more */ }
+    if (await waitFor(() => seatMapOpen(tabId), 8000)) return { clicked: "real+script", seat_map: true };
+    return { clicked: "real+script", seat_map: false };
+  }
+  return { clicked: how, seat_map: false };
 }
 
 async function run(op, args) {
@@ -229,9 +289,12 @@ async function run(op, args) {
       throw new Error("Unknown step " + name);
     const raw = await exec(tab.id, (n, a) => globalThis.__rm[n](a), [name, args.args || {}]);
     const result = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (args.click && result && result.marked) { await realClick(tab.id); await settle(tab.id); }
-    else await sleep(800);
-    return { result, capture: await capture(tab.id) };
+    let click = null;
+    if (args.click && result && result.marked) {
+      click = name === "open_bus" ? await openBus(tab.id) : { clicked: await realClick(tab.id) };
+      await settle(tab.id);
+    } else await sleep(800);
+    return { result, click, capture: await capture(tab.id) };
   }
   if (op === "fill") {
     const result = await exec(tab.id, f => globalThis.__rmForms.fill(f), [args.fields || []]);

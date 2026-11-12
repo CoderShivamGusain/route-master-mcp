@@ -64,8 +64,11 @@ user's own Chrome, through the route-master extension. The user pays on that sit
 
 Flow (one tool call per step; every browser_* tool returns what the page now shows):
 1. plan_bus_trip for the route and date (YYYY-MM-DD, India time). Then browser_open with its redBus
-   or MakeMyTrip link (sleeper / time filters as the user asked): you get the ranked buses.
+   or MakeMyTrip link; pass around_time="HH:MM" when the user gives a time ("around 9 am" → 09:00)
+   and bus_type when they ask for one: you get the ranked buses, those near their time first.
 2. User picks a bus → browser_action(action="open_bus", operator=..., departure=...): the seat map.
+   Use the operator and HH:MM time exactly as in the table. Never send the user to the site
+   instead: if it fails, follow the tool's error message.
 3. User picks seats → browser_action(action="select_seats", seats=[...]); then "continue".
 4. Boarding/drop points → browser_action(action="choose_points", boarding=..., dropping=...); "continue".
 5. Passenger page: ask before typing the user's details, then browser_fill and browser_choose
@@ -135,6 +138,9 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
     """The signed-in MCP server: all open tools (mounted) plus the browser_* tools."""
     app = FastMCP(name="mcp-route-master", instructions=APP_INSTRUCTIONS, version=__version__, auth=auth)
     app.mount(base.mcp)
+    # These two hand the AI a script to run in its own browser. Here the user's Chrome does that
+    # (browser_read / browser_action); offering both made ChatGPT pick page_action and give up.
+    app.disable(names={"page_action", "read_page"}, components={"tool"})
     tool: Callable[..., Any] = partial(base._tool, server=app)
 
     @tool(
@@ -318,6 +324,20 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             raise ToolError(f"The '{action}' step didn't work: {result['error']}. The page wasn't changed.")
         note = _action_note(result)
         after = out["capture"]
+        if action == "open_bus" and not _seat_map_open(after, site):
+            # Don't hand back the unchanged bus list: the AI then guesses and sends the user away.
+            click = out.get("click") or {}
+            raise ToolError(
+                f"Found {operator} {departure} and clicked it, but no seat map opened"
+                + (
+                    " (the extension is older than this server: reload it in chrome://extensions)"
+                    if not click
+                    else ""
+                )
+                + ". Call browser_read first: if it shows the seat map, carry on from there. If not, call "
+                "browser_action open_bus once more; if that fails too, call browser_show so the user can open the "
+                "bus in the route-master window, then call browser_read."
+            )
         text = await _explain(
             after,
             note,
@@ -415,6 +435,15 @@ def _next_day_if_few_left(capture: str) -> str | None:
     nxt = day + timedelta(days=1)
     old, new = (redbus_date(day), redbus_date(nxt)) if site == "redBus" else (mmt_date(day), mmt_date(nxt))
     return c.url.replace(old, new) if old in c.url else None
+
+
+def _seat_map_open(capture: str, site: str) -> bool:
+    """True when the page shows a seat map (or has moved past it)."""
+    try:
+        c = load_capture(capture)
+    except CaptureError:
+        return False
+    return bool(c.seats or c.mmt_seats) or page_kind(c, site) != "results"
 
 
 def _action_note(result: Any) -> str:

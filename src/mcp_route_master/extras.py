@@ -223,7 +223,8 @@ def register(mcp: FastMCP) -> None:
         return (
             f"Find buses from {origin} to {destination} on {date}.{prefs}\n"
             "Use route-master: plan_bus_trip first (convert the date to YYYY-MM-DD in India time). If you can "
-            "use a browser, open the dated link, then page_action(capture) + read_page to rank the real buses; "
+            "have browser_open, use it with the dated link; else if you can use a browser, open it, then "
+            "page_action(capture) + read_page to rank the real buses; "
             "otherwise give me the links and ask me to copy-paste the results page, then rank it with "
             "rank_pasted_results. Check the best option with check_operator. Keep the answer short: one table "
             "and your pick, then ask which bus I want."
@@ -239,7 +240,8 @@ def register(mcp: FastMCP) -> None:
     ) -> str:
         return (
             f"Book the {operator} bus leaving {departure} from {origin} to {destination} on {date}, on {site}.\n"
-            "Use route-master: booking_steps for the plan, page_action + read_page on each page. Show me the "
+            "Use route-master: browser_action / browser_read if you have them (they work in my Chrome), "
+            "otherwise booking_steps for the plan and page_action + read_page on each page. Show me the "
             "seat map and wait for my seat choice; show the boarding/drop points and wait for my choice; ask "
             "before typing my details and ask about each paid extra; show the booking_summary and wait for my "
             "'confirm'. Then open the payment page and give me the total, the hold time and the 'Pay here' "

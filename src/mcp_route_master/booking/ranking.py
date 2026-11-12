@@ -12,9 +12,11 @@ Each bus gets:
     (cheapest fare / this fare), 10% seats left (capped at 10), minus a penalty
     for buses leaving within `TIGHT_MINUTES` and, with `around_time`, for
     distance from the requested time;
+  * with `around_time`, whether it leaves within `NEAR_MINUTES` of that time: those buses are
+    listed first, so "around 9 am" shows the morning buses rather than the best evening ones;
   * short notes explaining anything the user should know.
-Sorting is always by fit level first, so a better-scored mismatch never sits
-above a matching bus; the chosen `sort_by` orders buses within each level.
+Then sorting is by fit level, and a clear mismatch never sits above a
+bus of the asked type, near the time or not; the chosen `sort_by` orders buses within each level.
 Buses that leave today within `MISSED_MINUTES` (or already left) are returned
 separately, not ranked.
 """
@@ -38,6 +40,7 @@ _TIME = re.compile(r"^\s*(\d{1,2})[:.](\d{2})\s*([ap]\.?m\.?)?\s*$", re.I)
 TIGHT_MINUTES = 30  # leaving sooner than this: only catchable if already near the stop
 MISSED_MINUTES = 5  # leaving in under 5 minutes: nobody can still book and board it
 MAX_SHOWN = 10
+NEAR_MINUTES = 180  # with around_time: buses within 3 hours of it are listed before the rest
 
 
 class TimeFormatError(ValueError):
@@ -100,6 +103,7 @@ class Ranked:
     notes: list[str] = field(default_factory=list)
     minutes_to_go: int | None = None
     level: int = 0  # 0 matches, 1 close substitute, 2 unknown type, 3 mismatch
+    near: bool | None = None  # within NEAR_MINUTES of around_time; None when no time was asked
 
     @property
     def direct_url(self) -> str | None:
@@ -237,16 +241,32 @@ def rank(
             if 90 <= gap < 360:
                 hours = round(gap / 60)
                 notes.append(f"{hours}h {'after' if (dep - target) % 1440 < 720 else 'before'} your time")
+        near = None
+        if target is not None:
+            gap = abs(dep - target)
+            near = min(gap, 24 * 60 - gap) <= NEAR_MINUTES
         ranked.append(
             Ranked(
-                bus, dep, dur, a, fit, round(score, 1), _pick_link(bus.platform, links), notes, to_go, level
+                bus,
+                dep,
+                dur,
+                a,
+                fit,
+                round(score, 1),
+                _pick_link(bus.platform, links),
+                notes,
+                to_go,
+                level,
+                near,
             )
         )
 
     # Exact matches first, then close substitutes (a semi-sleeper when a sleeper was asked for),
     # then listings with no bus type, then clear mismatches (a 3+2 seater for a sleeper request).
-    def fit_rank(r: Ranked) -> int:
-        return r.level
+    # With around_time, buses near that time come first, but a clear mismatch (a seater when a
+    # sleeper was asked for) still never sits above a bus of the right kind.
+    def fit_rank(r: Ranked) -> tuple[bool, bool, int]:
+        return (r.level == 3, r.near is False, r.level)
 
     keys: dict[str, Callable[[Ranked], tuple]] = {
         "best": lambda r: (fit_rank(r), -r.score, r.depart_min),

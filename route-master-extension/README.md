@@ -55,6 +55,9 @@ route-master window in your Chrome (behind your other windows), ranks the buses,
 map, picks your seat and stops, fills the form with your OK, shows a summary, and after your
 "confirm" opens the payment page in front for you to pay.
 
+Use only this signed-in app for booking: turn off any older route-master app that points at `/mcp`,
+or the AI may pick it and send you to the site instead of opening the seat map.
+
 The open address `https://mcp-route-master.onrender.com/mcp` still works without sign-in: you get
 links, rankings, scam checks and step-by-step guidance, and click on the site yourself.
 
@@ -87,7 +90,7 @@ Hosting your own server: change `SERVER_URL` in `config.js` and the server host 
 | `mcp-route-master.onrender.com` | The live connection to the route-master server. |
 | `identity` | "Sign in with Google". |
 | `tabs`, `scripting` | Open the route-master window and run the page steps in it. |
-| `debugger` | A real mouse click where the sites ignore script clicks (opening a bus, the continue buttons). Chrome briefly shows "route-master started debugging this browser" during that click. |
+| `debugger` | A real mouse click where the sites ignore script clicks (opening a bus, the continue buttons). Chrome briefly shows "route-master started debugging this browser" during that click. When the route-master window is hidden or minimized, Chrome doesn't deliver such clicks, so the click is made by script instead, and opening a bus is checked: if no seat map appears, it tries once more. |
 | `storage`, `alarms` | Remember your sign-in; reconnect if the connection drops. |
 | `background` | Start with Chrome, so the AI can reach your browser without you opening it. |
 
@@ -97,8 +100,9 @@ Hosting your own server: change `SERVER_URL` in `config.js` and the server host 
   ID token with a nonce), trades the ID token at `/ext/token` for a route-master extension token
   (30 days), and keeps a WebSocket to `/ext/ws`. It pings every 20 seconds, which also keeps the
   service worker alive, and a 1-minute alarm reconnects. It runs commands one at a time.
-- Commands: `open`, `capture`, `action` (select_seats, choose_points, decline_addons, open_bus,
-  continue), `fill`, `choose`, `show`. After every step it captures the page; the server turns that
+- Commands: `open`, `capture`, `peek` (read another page, e.g. tomorrow's buses, in a background
+  tab), `action` (select_seats, choose_points, decline_addons, open_bus, continue), `fill`, `choose`,
+  `show`. After every step it captures the page; the server turns that
   into the answer (ranked buses, seat map, stops, form check, or the payment hand-over).
 - `page/actions.js` is **generated** from the server's `src/mcp_route_master/browser/scripts.py`
   (one source of truth). After changing scripts.py, run
