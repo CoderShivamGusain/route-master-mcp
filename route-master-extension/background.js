@@ -264,15 +264,21 @@ async function waitFor(check, ms) {
   return false;
 }
 
+// The seats themselves are on the page (redBus switches to the seat step first and draws the seats a
+// few seconds later; reading the page in between gave "no seats", live 12 Nov 2026).
+const seatsDrawn = tabId => exec(tabId, () =>
+  !!document.querySelector('[data-testid^="seat_"], [aria-label^="Seat number"]'));
+const opened = async (tabId, how) => ({ clicked: how, seat_map: true, seats: await waitFor(() => seatsDrawn(tabId), 20000) });
+
 async function openBus(tabId, g) {
   const start = Date.now();
   const how = await realClick(tabId, { g });
-  if (await waitFor(() => seatMapOpen(tabId), 6000)) return { clicked: how, seat_map: true };
+  if (await waitFor(() => seatMapOpen(tabId), 6000)) return opened(tabId, how);
   // Retry only with time to spare: the whole step must end well inside the server's 60 s.
   if (how === "real" && Date.now() - start < 25000 && await safeToRetry(tabId).catch(() => false)) {
     stopIfStale(g);
     try { await realClick(tabId, { trusted: false, g }); } catch { /* the button went away: check once more */ }
-    if (await waitFor(() => seatMapOpen(tabId), 6000)) return { clicked: "real+script", seat_map: true };
+    if (await waitFor(() => seatMapOpen(tabId), 6000)) return opened(tabId, "real+script");
     return { clicked: "real+script", seat_map: false };
   }
   return { clicked: how, seat_map: false };

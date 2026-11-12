@@ -392,6 +392,9 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
             if cap is None:
                 raise ToolError(SLOW) from None
             out = {"capture": cap}
+        out["capture"] = await _await_seats(hub, out["capture"])
+        if _seats_pending(out["capture"]):
+            raise ToolError(STILL_LOADING)
         text = await _explain(
             out["capture"],
             bus_type=bus_type,
@@ -538,7 +541,9 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
                 + _outdated(hub)
             )
         note = " ".join(x for x in (_action_note(result), slow_note) if x)
-        after = out["capture"]
+        after = await _await_seats(hub, out["capture"])
+        if _seats_pending(after):
+            raise ToolError(STILL_LOADING)
         if action == "open_bus" and not _seat_map_open(after, site):
             # Don't hand back the unchanged bus list: the AI then guesses and sends the user away.
             click = out.get("click") or {}
@@ -673,6 +678,36 @@ def _next_day_if_few_left(capture: str) -> str | None:
     nxt = day + timedelta(days=1)
     old, new = (redbus_date(day), redbus_date(nxt)) if site == "redBus" else (mmt_date(day), mmt_date(nxt))
     return c.url.replace(old, new) if old in c.url else None
+
+
+def _seats_pending(capture: str) -> bool:
+    """On the seat step, but the site hasn't drawn the seats yet."""
+    try:
+        c = load_capture(capture)
+    except CaptureError:
+        return False
+    site = site_of(c.url)
+    return site is not None and page_kind(c, site) == "seats" and not (c.seats or c.mmt_seats)
+
+
+async def _await_seats(hub: Hub, capture: str, tries: int = 4) -> str:
+    """Give a slow seat map time to appear: re-read the page (waiting RETRY_WAIT each time) while
+    it's on the seat step without seats. Returns the latest capture either way."""
+    for _ in range(tries):
+        if not _seats_pending(capture):
+            break
+        await asyncio.sleep(RETRY_WAIT)
+        try:
+            capture = (await _send(hub, "capture", timeout=30))["capture"]
+        except ToolError:
+            break
+    return capture
+
+
+STILL_LOADING = (
+    "The bus is open but its seat map is still loading. Wait a few seconds, then call browser_read (don't "
+    "open the bus again and don't send the user to the site)."
+)
 
 
 def _seat_map_open(capture: str, site: str) -> bool:

@@ -563,3 +563,40 @@ async def test_slow_seat_click_says_check_before_repeating(server, monkeypatch):
     async with extension(server, RAM, page="seats"), app_client(server) as c:
         err, text = await call(c, "browser_action", {"action": "select_seats", "seats": ["4L"]})
     assert not err and "was slow" in text and "would undo it" in text
+
+
+async def test_seat_map_that_draws_late_is_waited_for(server, monkeypatch):
+    """Live ChatGPT test, 12 Nov 2026 (redBus, Mahalaxmi 22:10): the page was on the seat step but the
+    seats weren't drawn yet, so the first try said the seat map didn't load."""
+    monkeypatch.setattr(ext_app, "RETRY_WAIT", 0)
+    empty = json.loads(json.dumps(REDBUS_SEATS))
+    empty["seats"] = []
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        reads = {"n": 0}
+
+        def answer(op, args):
+            if op == "action":
+                return {
+                    "result": {"marked": True},
+                    "click": {"clicked": "script"},
+                    "capture": json.dumps(empty),
+                }
+            reads["n"] += 1  # the first re-read is still empty, the next has the seats
+            return {"capture": json.dumps(empty if reads["n"] < 3 else REDBUS_SEATS)}
+
+        fake.answer = answer
+        err, text = await call(
+            c,
+            "browser_action",
+            {"action": "open_bus", "operator": "Tiwari and Brothers", "departure": "17:00"},
+        )
+        assert not err and "## Seats: Tiwari and Brothers, 17:00" in text and "4L" in text
+        fake.answer = lambda op, args: {"result": {"marked": True}, "capture": json.dumps(empty)}
+        err, text = await call(
+            c,
+            "browser_action",
+            {"action": "open_bus", "operator": "Tiwari and Brothers", "departure": "17:00"},
+        )
+        assert err and "still loading" in text and "browser_read" in text
+        err, text = await call(c, "browser_read")
+        assert err and "still loading" in text

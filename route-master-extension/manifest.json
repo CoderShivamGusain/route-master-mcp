@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "route-master",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Lets your AI assistant book buses for you on redBus and MakeMyTrip, in your own Chrome. You always pay yourself.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0Cuze+PlY0/A1W+rrKgCKUeRNSYbhI2CAesmraO5JM+Y2B21ZGc2C0YNfRa6kHI1+vs4njTvlCyNCPuAlXcjmyQSDqxNXtBcmOhMFI/3FFnMUu/ykLkhbFEKJoCExQSjJt1MMWe0zGYKz9rmgjIAwLFog2zdtJGjn6g3dF9u0NtGAlA/zM45DAaGIMIacwgAmPvS4rkNVpJ2tl2DYNIKVmWvvV0pWLbRw5TTmMyq1nBBypgFJtYkSTIIAo19Vedp7fgkUlO6CdF7E90pkHPOAZ7j6UOpAI4RFXD6mtS1qhDfv1QqPoBPRyygmW+mQCc2ZY7679TLvQKd3f7fc4vsDQIDAQAB",
   "minimum_chrome_version": "116",
