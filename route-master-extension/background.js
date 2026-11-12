@@ -4,6 +4,7 @@
 // Commands (from the server, see src/mcp_route_master/extension/relay.py):
 //   open {url}                 open a redBus/MakeMyTrip page, then capture it
 //   capture                    read the current page (no inputs on payment pages)
+//   peek {url}                 read another page in a background tab (e.g. tomorrow's buses)
 //   action {name,args,click}   run a page step (generated page/actions.js); real click if marked
 //   fill {fields}              type the user's own details (never secret fields)
 //   choose {text}              pick an option such as "Male" or "Don't add ..."
@@ -198,6 +199,20 @@ async function run(op, args) {
     await waitLoad(tab.id, 30000);
     await sleep(2500); // the sites render the list after the page loads
     return { capture: await capture(tab.id) };
+  }
+  if (op === "peek") {
+    // Read another page (e.g. tomorrow's buses) in a background tab; the booking tab stays put.
+    if (!allowed(args.url)) throw new Error("Only https redBus and MakeMyTrip pages can be opened.");
+    const base = await getTab(true);
+    const t = await chrome.tabs.create({ windowId: base.windowId, url: args.url, active: false });
+    try {
+      await sleep(500);
+      await waitLoad(t.id, 30000);
+      await sleep(2500);
+      return { capture: await capture(t.id) };
+    } finally {
+      chrome.tabs.remove(t.id).catch(() => {});
+    }
   }
   const tab = await getTab(false);
   if (op === "capture") return { capture: await capture(tab.id) };

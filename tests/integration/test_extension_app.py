@@ -9,19 +9,21 @@ import asyncio
 import contextlib
 import json
 import socket
+from datetime import datetime, timedelta
 
 import pytest
 import uvicorn
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
-from page_fixtures import REDBUS_FORM, REDBUS_PAYMENT, REDBUS_RESULTS, REDBUS_SEATS
+from page_fixtures import MMT_RESULTS, REDBUS_FORM, REDBUS_PAYMENT, REDBUS_RESULTS, REDBUS_SEATS, TRAVEL
 from websockets.asyncio.client import connect
 from websockets.exceptions import ConnectionClosed
 
 from mcp_route_master.extension import app as ext_app
 from mcp_route_master.extension.app import Settings, build_combined_app
 from mcp_route_master.extension.tokens import ExtensionTokens, Identity
+from mcp_route_master.places.dates import IST, mmt_date, redbus_date
 
 pytestmark = pytest.mark.anyio
 KEY = "k" * 40
@@ -79,8 +81,11 @@ class FakeExtension:
                 if msg.get("type") != "cmd":
                     continue
                 self.calls.append((msg["op"], msg["args"]))
-                result = self.answer(msg["op"], msg["args"])
-                await ws.send(json.dumps({"type": "result", "id": msg["id"], "ok": True, "result": result}))
+                try:
+                    reply = {"ok": True, "result": self.answer(msg["op"], msg["args"])}
+                except Exception as e:  # the real extension reports a failed command the same way
+                    reply = {"ok": False, "error": str(e)}
+                await ws.send(json.dumps({"type": "result", "id": msg["id"], **reply}))
 
     def answer(self, op, args):
         if op == "action":
@@ -88,6 +93,8 @@ class FakeExtension:
             return {"result": {"marked": True}, "capture": json.dumps(self.pages[self.page])}
         if op == "show":
             return {}
+        if op == "peek":
+            return {"capture": json.dumps(self.pages["tomorrow"])}
         return {"capture": json.dumps(self.pages[self.page])}
 
 
@@ -166,6 +173,7 @@ async def test_browser_flow_through_the_relay(server):
             {"url": "https://www.redbus.in/bus-tickets/delhi-to-manali", "bus_type": "sleeper"},
         )
         assert not err and "HRTC (9 buses" in text
+        assert not any(op == "peek" for op, _ in fake.calls)  # not today's page: no extra day
         err, text = await call(c, "browser_open", {"url": "https://redbus-pay.in/x"})
         assert err and "Only https redbus.in and makemytrip.com" in text
         err, text = await call(
@@ -268,3 +276,69 @@ async def test_broken_extension_message_only_drops_that_connection(server):
     async with extension(server, RAM), app_client(server) as c:  # the server is still fine
         err, text = await call(c, "browser_status")
         assert "Connected" in text
+
+
+async def test_open_bus_accepts_12_hour_times_and_reports_failures(server):
+    """Live ChatGPT test, 12 Nov 2026: it passed "00:50 AM", the page script found no bus, and the
+    AI only saw the unchanged list. Times are now normalised, and a failed step is an error."""
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        err, text = await call(
+            c, "browser_action", {"action": "open_bus", "operator": "FlixBus", "departure": "00:50 AM"}
+        )
+        assert not err
+        sent = next(a for op, a in fake.calls if op == "action")
+        assert sent["args"]["departure"] == "00:50"
+        fake.answer = lambda op, args: (
+            {"result": {"error": "bus not found on this page"}, "capture": json.dumps(REDBUS_RESULTS)}
+            if op == "action"
+            else {"capture": json.dumps(REDBUS_RESULTS)}
+        )
+        err, text = await call(
+            c, "browser_action", {"action": "open_bus", "operator": "FlixBus", "departure": "1:00 AM"}
+        )
+        assert err and "didn't work: bus not found on this page" in text and "wasn't changed" in text
+        err, text = await call(
+            c, "browser_action", {"action": "open_bus", "operator": "FlixBus", "departure": "late"}
+        )
+        assert err and "Can't read the departure time" in text
+
+
+def _evening_of_travel_day(monkeypatch, hour=18):
+    """Make TRAVEL "today" at the given IST hour, as the server sees it."""
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(TRAVEL.year, TRAVEL.month, TRAVEL.day, hour, tzinfo=IST)
+
+    monkeypatch.setattr(ext_app, "datetime", Clock)
+
+
+def test_next_day_link_only_when_few_buses_are_left_today(monkeypatch):
+    nxt = TRAVEL + timedelta(days=1)
+    assert ext_app._next_day_if_few_left(json.dumps(REDBUS_RESULTS)) is None  # TRAVEL isn't today
+    _evening_of_travel_day(monkeypatch)
+    url = ext_app._next_day_if_few_left(json.dumps(REDBUS_RESULTS))
+    assert url and redbus_date(nxt) in url and redbus_date(TRAVEL) not in url
+    url = ext_app._next_day_if_few_left(json.dumps(MMT_RESULTS))
+    assert url and mmt_date(nxt) in url
+    assert ext_app._next_day_if_few_left(json.dumps(REDBUS_SEATS)) is None  # not a results page
+    assert ext_app._next_day_if_few_left("not json") is None
+    monkeypatch.setattr(ext_app, "FEW_LEFT", 3)  # 5 buses (all after 18:00) are enough
+    assert ext_app._next_day_if_few_left(json.dumps(REDBUS_RESULTS)) is None
+
+
+async def test_browser_open_adds_tomorrows_buses_when_few_are_left(server, monkeypatch):
+    _evening_of_travel_day(monkeypatch)
+    tomorrow = json.loads(json.dumps(REDBUS_RESULTS))
+    tomorrow["url"] = tomorrow["url"].replace(redbus_date(TRAVEL), redbus_date(TRAVEL + timedelta(days=1)))
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        fake.pages["tomorrow"] = tomorrow
+        err, text = await call(c, "browser_open", {"url": REDBUS_RESULTS["url"]})
+        assert not err and "here are tomorrow's too" in text
+        assert text.count("ReoBus Pro") >= 2  # in today's table and tomorrow's
+        peek = [a for op, a in fake.calls if op == "peek"]
+        assert peek == [{"url": tomorrow["url"]}]
+        del fake.pages["tomorrow"]  # an older extension, or tomorrow's page didn't load
+        err, text = await call(c, "browser_open", {"url": REDBUS_RESULTS["url"]})
+        assert not err and "ReoBus Pro" in text and "tomorrow's too" not in text

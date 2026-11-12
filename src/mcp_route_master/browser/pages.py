@@ -197,6 +197,7 @@ class Bus:
     review_count: int | None = None
     seats_left: int | None = None
     has_live_tracking: bool | None = None
+    day: int | None = None  # MakeMyTrip shows the departure's day ("00:50 13 NOV"): after-midnight buses
 
 
 @dataclass
@@ -297,7 +298,7 @@ def parse_mmt_results(c: Capture) -> tuple[list[Bus], list[Group], list[str]]:
     return buses, groups, problems
 
 
-_MMT_TIME = re.compile(r"^(\d{1,2}:\d{2})\s*\d{1,2}\s*[A-Z]{3}$")
+_MMT_TIME = re.compile(r"^(\d{1,2}:\d{2})\s*(\d{1,2})\s*[A-Z]{3}$")
 
 
 def _mmt_bus(block: list[str]) -> Bus | None:
@@ -323,6 +324,7 @@ def _mmt_bus(block: list[str]) -> Bus | None:
         review_count=count,
         seats_left=seats,
         has_live_tracking=True if "Live Tracking" in after else None,
+        day=int(_MMT_TIME.match(block[idx[0]]).group(2)),
     )
 
 

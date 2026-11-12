@@ -44,7 +44,7 @@ CAPTURE_JS = r"""(async () => {
   if (!pay && document.querySelector(cardSel) && !/[?&]step=/.test(location.search)) {
     // redBus results load as you scroll: load more cards, then go back to the top.
     // (Only works while the browser pane is visible; hidden tabs don't load more.)
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < 12; k++) {
       const all = document.querySelectorAll(cardSel);
       all[all.length - 1].scrollIntoView({ block: "end" }); await wait(600);
     }
@@ -57,11 +57,21 @@ CAPTURE_JS = r"""(async () => {
   let text = squash(document.body.innerText);
   const cut = (from, to) => { const i = text.indexOf(from); if (i < 0) return;
     const j = to ? text.indexOf(to, i) : -1; text = text.slice(i, j > i ? j : undefined); };
-  if (/makemytrip/.test(location.host) && /buses found/.test(text)) cut("buses found", "End of buses");
+  const mmt = /makemytrip/.test(location.host);
+  // MakeMyTrip with a seat map open: keep just that bus's seat map and stops (the full list is long).
+  let seatBox = mmt && !pay && document.querySelector('[data-testid^="seat_"]');
+  while (seatBox && !/PICK ?UP POINT/i.test(seatBox.innerText || "")) seatBox = seatBox.parentElement;
+  if (seatBox) text = squash(seatBox.innerText);
+  else if (mmt && /buses found/.test(text)) {
+    const at = Math.max(text.search(/\d+ buses found/), 0), end = text.indexOf("End of buses", at);
+    text = text.slice(at, end > at ? end : undefined);
+    // Drop each card's link row (Policies, Photos...) so every bus on the page fits.
+    text = text.split("\n").filter(l => !/^(Policies|Photos|Amenities|Pickups & Drops|Reviews|\d+ Window Seats?|Save ₹[\d,]+)$/.test(l.trim())).join("\n");
+  }
   const cards = [...document.querySelectorAll(cardSel)].map(e => squash(e.innerText).replace(/\n/g, " | "));
   if (cards.length) text = text.slice(0, 2500);  // redBus: the cards carry the buses; keep the header for groups
   const out = { v: 1, url: location.href, title: document.title,
-    text: text.slice(0, pay ? 3000 : 14000), cards: cards.slice(0, 60) };
+    text: text.slice(0, pay ? 3000 : mmt ? 30000 : 14000), cards: cards.slice(0, 100) };
   if (pay) return JSON.stringify(out);
   out.seats = [...document.querySelectorAll('[aria-label^="Seat number"]')]
     .map(e => ({ l: e.getAttribute("aria-label").split(". Press")[0], p: pos(e) }));
@@ -216,6 +226,16 @@ _MARK = r"""
 """
 
 
+def _hhmm(departure: str) -> str:
+    """'12:50 AM', '00:50 AM', '0:50' -> '00:50' (the cards show 24-hour times); unreadable text unchanged."""
+    from mcp_route_master.booking.ranking import TimeFormatError, fmt_clock, parse_clock
+
+    try:
+        return fmt_clock(parse_clock(departure.strip()))
+    except TimeFormatError:
+        return departure.strip()
+
+
 def open_bus_js(site: str, operator: str, departure: str) -> str:
     """Mark the bus card (redBus) or its SELECT SEATS button (MakeMyTrip) for a real click.
 
@@ -223,7 +243,7 @@ def open_bus_js(site: str, operator: str, departure: str) -> str:
     *first* time is `departure` (so an 08:00 arrival doesn't match an 08:00 departure). Zero or
     several matches is an error: the AI must not open the wrong bus."""
     return f"""(() => {{{_REPORT}{_MARK}
-  const op = {_js(operator.strip().lower())}, dep = {_js(departure.strip())};
+  const op = {_js(operator.strip().lower())}, dep = {_js(_hhmm(departure))};
   const hhmm = t => {{ const m = /^(\\d{{1,2}}):(\\d{{2}})$/.exec(t || ""); return m ? m[1].padStart(2, "0") + ":" + m[2] : null; }};
   const want = hhmm(dep);
   const leaves = el => [...el.querySelectorAll("*")].filter(n => n.children.length === 0).map(n => [n, sq(n.textContent)]);

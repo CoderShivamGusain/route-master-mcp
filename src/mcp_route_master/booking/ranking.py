@@ -51,7 +51,8 @@ def parse_clock(text: str) -> int:
         raise TimeFormatError(f"Can't read time '{text}'. Use HH:MM, e.g. 23:58.")
     hour, minute, ampm = int(m.group(1)), int(m.group(2)), (m.group(3) or "").lower().replace(".", "")
     if ampm:
-        if not 1 <= hour <= 12:
+        # "00:50 AM" (a 24-hour time with AM, as some apps write it) means 00:50.
+        if not (1 <= hour <= 12 or (hour == 0 and ampm == "am")):
             raise TimeFormatError(f"Can't read time '{text}'.")
         hour = hour % 12 + (12 if ampm == "pm" else 0)
     if hour > 23 or minute > 59:

@@ -13,7 +13,7 @@ globalThis.__rm = {
   if (!pay && document.querySelector(cardSel) && !/[?&]step=/.test(location.search)) {
     // redBus results load as you scroll: load more cards, then go back to the top.
     // (Only works while the browser pane is visible; hidden tabs don't load more.)
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < 12; k++) {
       const all = document.querySelectorAll(cardSel);
       all[all.length - 1].scrollIntoView({ block: "end" }); await wait(600);
     }
@@ -26,11 +26,21 @@ globalThis.__rm = {
   let text = squash(document.body.innerText);
   const cut = (from, to) => { const i = text.indexOf(from); if (i < 0) return;
     const j = to ? text.indexOf(to, i) : -1; text = text.slice(i, j > i ? j : undefined); };
-  if (/makemytrip/.test(location.host) && /buses found/.test(text)) cut("buses found", "End of buses");
+  const mmt = /makemytrip/.test(location.host);
+  // MakeMyTrip with a seat map open: keep just that bus's seat map and stops (the full list is long).
+  let seatBox = mmt && !pay && document.querySelector('[data-testid^="seat_"]');
+  while (seatBox && !/PICK ?UP POINT/i.test(seatBox.innerText || "")) seatBox = seatBox.parentElement;
+  if (seatBox) text = squash(seatBox.innerText);
+  else if (mmt && /buses found/.test(text)) {
+    const at = Math.max(text.search(/\d+ buses found/), 0), end = text.indexOf("End of buses", at);
+    text = text.slice(at, end > at ? end : undefined);
+    // Drop each card's link row (Policies, Photos...) so every bus on the page fits.
+    text = text.split("\n").filter(l => !/^(Policies|Photos|Amenities|Pickups & Drops|Reviews|\d+ Window Seats?|Save ₹[\d,]+)$/.test(l.trim())).join("\n");
+  }
   const cards = [...document.querySelectorAll(cardSel)].map(e => squash(e.innerText).replace(/\n/g, " | "));
   if (cards.length) text = text.slice(0, 2500);  // redBus: the cards carry the buses; keep the header for groups
   const out = { v: 1, url: location.href, title: document.title,
-    text: text.slice(0, pay ? 3000 : 14000), cards: cards.slice(0, 60) };
+    text: text.slice(0, pay ? 3000 : mmt ? 30000 : 14000), cards: cards.slice(0, 100) };
   if (pay) return JSON.stringify(out);
   out.seats = [...document.querySelectorAll('[aria-label^="Seat number"]')]
     .map(e => ({ l: e.getAttribute("aria-label").split(". Press")[0], p: pos(e) }));

@@ -153,7 +153,8 @@ Without browser control (ChatGPT, Gemini, or any app that can't click in the use
 
 Talking to the user:
 - Keep every reply short and plain: at most one small table or list, then one question.
-- Show the tools' text as it is. Don't add internal details (tool names, page code, test notes).
+- Show the tools' text as it is, including every row of a bus table (up to 10); don't shorten it.
+  Don't add internal details (tool names, page code, test notes).
 - Ask only for what the current step needs.
 
 Booking in the user's browser (only if you can control one):
@@ -1331,12 +1332,25 @@ async def _read_results(c: Capture, site: str, route, bus_type, around_time, sor
         head.append(f"_{len(problems)} listing(s) couldn't be read._")
     if not buses:
         raise ToolError("No buses could be read from this page. " + " ".join(head))
+    # MakeMyTrip lists buses leaving just after midnight ("00:50 13 NOV") on the day before's page.
+    # Ranked as today's 00:50 they'd look already gone, so they're shown as next-day buses instead.
+    day = route.travel_date
+    later = [b for b in buses if b.day is not None and b.day != day.day]
+    same = [b for b in buses if b not in later]
+    if later and same:
+        head.append(
+            f"_{len(later)} more bus(es) leave after midnight ({human_date(day + timedelta(days=1))}); "
+            "they're on the next day's page._"
+        )
+    elif later:
+        same, day = later, day + timedelta(days=1)
     ranked = await rank_buses(
         origin=route.origin,
         destination=route.destination,
-        travel_date=route.travel_date.isoformat(),
+        travel_date=day.isoformat(),
         buses=[
-            BusListing(platform=site, **{k: v for k, v in vars(b).items() if v is not None}) for b in buses
+            BusListing(platform=site, **{k: v for k, v in vars(b).items() if v is not None and k != "day"})
+            for b in same
         ],
         bus_type=bus_type,
         sort_by=sort_by,

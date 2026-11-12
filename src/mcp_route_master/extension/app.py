@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import os
 from collections.abc import Callable, Mapping
+from datetime import datetime, timedelta
 from functools import partial
 from typing import Annotated, Any, Literal, get_args
 from urllib.parse import urlsplit
@@ -36,13 +37,22 @@ from starlette.websockets import WebSocket
 
 from mcp_route_master import __version__
 from mcp_route_master import server as base
-from mcp_route_master.booking.ranking import SortBy
+from mcp_route_master.booking.ranking import SortBy, TimeFormatError, fmt_clock, parse_clock
 from mcp_route_master.booking.seats import Preference
-from mcp_route_master.browser.pages import CaptureError, load_capture, page_kind, site_of
+from mcp_route_master.browser.pages import (
+    CaptureError,
+    load_capture,
+    page_kind,
+    parse_mmt_results,
+    parse_redbus_results,
+    route_of,
+    site_of,
+)
 from mcp_route_master.common.schema import opt, opt_list
 from mcp_route_master.extension.relay import ExtensionFailed, ExtensionOffline, Hub
 from mcp_route_master.extension.tokens import ExtensionTokens, SignInError, verify_google_id_token
 from mcp_route_master.http_options import build_middleware
+from mcp_route_master.places.dates import IST, mmt_date, redbus_date
 from mcp_route_master.trust.bus_types import BusPreference
 
 APP_PATH = "/app/mcp"
@@ -67,7 +77,8 @@ Flow (one tool call per step; every browser_* tool returns what the page now sho
 If browser_status says the extension isn't connected, use the guided tools instead (plan_bus_trip
 links, rank_pasted_results, booking_steps with for_traveller=true).
 
-Rules: never invent buses, prices or seats; show the tools' text as it is; ask before typing
+Rules: never invent buses, prices or seats; show the tools' tables as they are, all rows (up to 10
+buses, plus tomorrow's when shown), never a shortened list; ask before typing
 personal details; never type OTPs, passwords, card or UPI details and never pay; keep replies short.
 """
 
@@ -147,12 +158,30 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         around_time: opt(str, description="Results page: preferred departure, HH:MM.", max_length=12) = None,
         sort_by: Annotated[SortBy, Field(description="Results page: how to sort.")] = "best",
     ) -> str:
-        """Open a redBus or MakeMyTrip page in the user's Chrome and return what it shows (e.g. ranked buses)."""
+        """Open a redBus or MakeMyTrip page in the user's Chrome and return what it shows (e.g. ranked buses).
+
+        Use this for live buses, seats and fares, never web search: only the page in the user's Chrome
+        is current."""
         parts = urlsplit(url.strip())
         if parts.scheme != "https" or site_of(url.strip()) is None:
             raise ToolError("Only https redbus.in and makemytrip.com pages can be opened.")
         out = await _send(hub, "open", {"url": url.strip()}, timeout=75)
-        return await _explain(out["capture"], bus_type=bus_type, around_time=around_time, sort_by=sort_by)
+        read = {"bus_type": bus_type, "around_time": around_time, "sort_by": sort_by}
+        text = await _explain(out["capture"], **read)
+        nxt = _next_day_if_few_left(out["capture"])
+        if nxt is None:
+            return text
+        # Few buses still to leave today: read tomorrow's page in a background tab, so the user gets
+        # enough choices. The booking tab stays on today's page.
+        try:
+            more = await _send(hub, "peek", {"url": nxt}, timeout=60)
+        except ToolError:
+            return text  # an older extension without "peek", or the page didn't load: today's list is enough
+        tomorrow = await _explain(more["capture"], **read)
+        return (
+            f"{text}\n\n---\n**Only a few buses are still to leave today, so here are tomorrow's too.** "
+            f"To book one of these, call browser_open with {nxt} first.\n\n{tomorrow}"
+        )
 
     @tool(
         annotations={**_BROWSER, "readOnlyHint": True, "title": "Read the page in my browser"},
@@ -265,6 +294,12 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         if action == "open_bus":
             if not operator or not departure:
                 raise ToolError("open_bus needs the operator and departure exactly as shown.")
+            try:
+                departure = fmt_clock(parse_clock(departure.strip()))
+            except TimeFormatError:
+                raise ToolError(
+                    f"Can't read the departure time '{departure}'; pass it as HH:MM, e.g. 00:50."
+                ) from None
             args.update(operator=operator, departure=departure)
         elif action == "select_seats":
             if not (seats or seat_indexes):
@@ -277,7 +312,11 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         out = await _send(
             hub, "action", {"name": action, "args": args, "click": action in _CLICKS}, timeout=60
         )
-        note = _action_note(out.get("result"))
+        result = out.get("result")
+        if isinstance(result, dict) and result.get("error"):
+            # Say plainly that the step didn't happen, so the AI doesn't guess why.
+            raise ToolError(f"The '{action}' step didn't work: {result['error']}. The page wasn't changed.")
+        note = _action_note(result)
         after = out["capture"]
         text = await _explain(
             after,
@@ -343,6 +382,39 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         return "The booking window is now in front in your Chrome."
 
     return app
+
+
+FEW_LEFT = 10  # fewer buses than this still to leave today → also show tomorrow's
+
+
+def _next_day_if_few_left(capture: str) -> str | None:
+    """Tomorrow's page link when this is today's results page and fewer than FEW_LEFT buses are
+    still to leave; otherwise None."""
+    try:
+        c = load_capture(capture)
+    except CaptureError:
+        return None
+    site = site_of(c.url)
+    if site is None or page_kind(c, site) != "results":
+        return None
+    day = route_of(c, site).travel_date
+    now = datetime.now(IST)
+    if day != now.date():
+        return None
+    buses = (parse_redbus_results if site == "redBus" else parse_mmt_results)(c)[0]
+    soon = now.hour * 60 + now.minute + 5
+    left = 0
+    for b in buses:
+        try:
+            if b.day not in (None, day.day) or parse_clock(b.departure) > soon:
+                left += 1  # after midnight (MakeMyTrip shows its day), or later today
+        except TimeFormatError:
+            continue
+    if left >= FEW_LEFT:
+        return None
+    nxt = day + timedelta(days=1)
+    old, new = (redbus_date(day), redbus_date(nxt)) if site == "redBus" else (mmt_date(day), mmt_date(nxt))
+    return c.url.replace(old, new) if old in c.url else None
 
 
 def _action_note(result: Any) -> str:

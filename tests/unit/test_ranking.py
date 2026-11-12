@@ -52,13 +52,21 @@ TONIGHT = [
 
 @pytest.mark.parametrize(
     "text,minutes",
-    [("23:58", 1438), ("9:05", 545), ("11:58 PM", 1438), ("12:10 am", 10), ("12:00 PM", 720), ("07.30", 450)],
+    [
+        ("23:58", 1438),
+        ("9:05", 545),
+        ("11:58 PM", 1438),
+        ("12:10 am", 10),
+        ("12:00 PM", 720),
+        ("07.30", 450),
+        ("00:50 AM", 50),
+    ],
 )
 def test_parse_clock(text, minutes):
     assert parse_clock(text) == minutes
 
 
-@pytest.mark.parametrize("text", ["25:00", "13:00 PM", "noon", ""])
+@pytest.mark.parametrize("text", ["25:00", "13:00 PM", "00:50 PM", "noon", ""])
 def test_parse_clock_rejects(text):
     with pytest.raises(TimeFormatError):
         parse_clock(text)

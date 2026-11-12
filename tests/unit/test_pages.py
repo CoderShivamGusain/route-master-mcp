@@ -1,6 +1,7 @@
 """Page parsing (browser/pages.py) and the read_page / page_action tools, on captures recorded live."""
 
 import json
+from datetime import timedelta
 
 import pytest
 from fastmcp import Client
@@ -341,10 +342,8 @@ def test_payment_timer_must_be_a_timer_and_pages_by_host():
 
 
 def test_mmt_discounted_fare_is_the_last_price_before_rating():
-    text = MMT_RESULTS["text"].replace(
-        "21:452 NOV\n06hrs 45mins\n04:303 NOV\n949\n4.7",
-        "21:452 NOV\n06hrs 45mins\n04:303 NOV\n1,200\n949\n4.7",
-    )
+    assert "\n949\n4.7" in MMT_RESULTS["text"]
+    text = MMT_RESULTS["text"].replace("\n949\n4.7", "\n1,200\n949\n4.7", 1)
     buses, _, _ = P.parse_mmt_results(cap(_form(MMT_RESULTS, text=text)))
     assert buses[0].fare == 949
 
@@ -353,3 +352,28 @@ def test_mmt_discounted_fare_is_the_last_price_before_rating():
 async def test_insecure_page_is_refused():
     err, text = await read(_form(REDBUS_PAYMENT, url="http://www.redbus.in/paymentDetails"))
     assert err and "https" in text
+
+
+def test_open_bus_script_normalises_12_hour_times():
+    from mcp_route_master.browser import scripts as ps
+
+    for shown in ["00:50 AM", "12:50 AM", "0:50", "00:50"]:
+        assert 'dep = "00:50"' in ps.open_bus_js("MakeMyTrip", "FlixBus", shown)
+
+
+def test_mmt_results_keep_the_day_shown_with_each_time():
+    buses, _, _ = P.parse_mmt_results(cap(MMT_RESULTS))
+    assert {b.day for b in buses} == {TRAVEL.day}
+
+
+@pytest.mark.anyio
+async def test_mmt_buses_after_midnight_are_marked_as_next_day():
+    """MakeMyTrip lists a 00:50 bus of the next day on this day's page ("00:5020 NOV")."""
+    nxt = TRAVEL + timedelta(days=1)
+    tag = f"{nxt.day} {nxt.strftime('%b').upper()}"
+    text = MMT_RESULTS["text"].replace(f"21:45{TRAVEL.day} {TRAVEL.strftime('%b').upper()}", f"00:50{tag}", 1)
+    buses, _, _ = P.parse_mmt_results(cap(_form(MMT_RESULTS, text=text)))
+    assert buses[0].departure == "00:50" and buses[0].day == nxt.day
+    err, out = await read(_form(MMT_RESULTS, text=text))
+    assert not err and "1 more bus(es) leave after midnight" in out
+    assert "RTH STAR BUS" not in out  # not ranked as an already-gone 00:50 bus of this day

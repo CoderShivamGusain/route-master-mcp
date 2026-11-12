@@ -21,6 +21,23 @@ FORM = """<div><label for="n">Name *</label><input id="n" placeholder="Enter you
   <label for="c">Card number</label><input id="c" placeholder="Card number">
   <div role="radio">Male</div><div role="radio">Female</div><button>Continue booking</button></div>"""
 
+MMT = "https://www.makemytrip.com/bus/search/Delhi/Agra/19-11-2026"
+_CARD = (
+    "<div><p>{op}</p><p>{t}</p><p>Policies</p><p>Photos</p><p>Amenities</p><p>Pickups &amp; Drops</p>"
+    "<p>Reviews</p><p>6 Window Seats</p><p>Save ₹120</p><button>SELECT SEATS</button></div>"
+)
+MMT_LIST = (
+    "<p>12 buses found</p>"
+    + _CARD.format(op="FlixBus", t="00:5020 NOV")
+    + _CARD.format(op="Zing", t="21:3019 NOV")
+    + "<p>End of buses</p><footer>About us</footer>"
+)
+MMT_SEAT_MAP = MMT_LIST.replace(
+    "<p>End of buses</p>",
+    '<section><p>LOWER BERTH (2)</p><div><span data-testid="seat_L1" class="listingSprite"></span>'
+    "<span>₹899</span></div><p>PICK UP POINT</p><p>Kashmere Gate</p></section><p>End of buses</p>",
+)
+
 pytestmark = pytest.mark.skipif(not _node_playwright(), reason="needs node + playwright")
 
 
@@ -76,6 +93,8 @@ def results(tmp_path_factory):
             "url": RB,
             "js": _js("JSON.stringify(__rmForms.choose('Continue booking'))"),
         },
+        "mmt_list": {"html": MMT_LIST, "url": MMT, "js": _js("__rm.capture({})")},
+        "mmt_seat_map": {"html": MMT_SEAT_MAP, "url": MMT, "js": _js("__rm.capture({})")},
         "fill_on_payment": {
             "html": FORM,
             "url": "https://www.redbus.in/paymentDetails",
@@ -109,3 +128,20 @@ def test_choose_marks_options_but_never_continue(results):
     assert "can't be chosen" in results["choose_banned"]["result"]["error"]
     assert results["choose_second"]["result"]["at"] == 2  # passenger 2's "Male" (third radio)
     assert "there's no number 2" in results["choose_missing_nth"]["result"]["error"]
+
+
+def test_mmt_capture_keeps_buses_and_drops_link_rows(results):
+    text = (
+        json.loads(results["mmt_list"]["result"])["text"]
+        if isinstance(results["mmt_list"]["result"], str)
+        else results["mmt_list"]["result"]["text"]
+    )
+    assert text.startswith("12 buses found") and "FlixBus" in text and "00:5020 NOV" in text
+    assert not any(w in text for w in ("Policies", "Photos", "Window Seats", "Save ₹", "About us"))
+
+
+def test_mmt_capture_with_a_seat_map_open_keeps_only_that_bus(results):
+    r = results["mmt_seat_map"]["result"]
+    r = json.loads(r) if isinstance(r, str) else r
+    assert "LOWER BERTH (2)" in r["text"] and "PICK UP POINT" in r["text"] and "Zing" not in r["text"]
+    assert [s["t"] for s in r["mmt_seats"]] == ["seat_L1"]

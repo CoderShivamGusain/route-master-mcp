@@ -5,6 +5,7 @@ Travel dates in the URLs are moved to a week from today, so checks such as "this
 left" don't make the tests depend on the time of day they run.
 """
 
+import re
 from datetime import timedelta
 
 from mcp_route_master.places.dates import redbus_date, today_ist
@@ -50,6 +51,14 @@ MMT_RESULTS = {
     "\n09hrs 00mins\n04:003 NOV\n600\n2.4\n55 Seats Left\n19 Window Seats\nPolicies\nPhotos\nAmenities\nPickups &"
     " Drops\nReviews\nSELECT SEATS",
 }
+
+# The site shows each time with its day ("21:452 NOV"); recorded on 2 Nov, moved to TRAVEL like the URL.
+_DAYS = {"2": TRAVEL, "3": TRAVEL + timedelta(days=1)}
+MMT_RESULTS["text"] = re.sub(
+    r"(\d{2}:\d{2})([23]) NOV",
+    lambda m: f"{m[1]}{_DAYS[m[2]].day} {_DAYS[m[2]].strftime('%b').upper()}",
+    MMT_RESULTS["text"],
+)
 
 _SEAT = "Seat number {n}, {deck} deck, seat type {kind}, berth {berth}, price {price} rupees, availability {a}, currently {cur}"
 
