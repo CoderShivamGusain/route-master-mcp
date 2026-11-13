@@ -61,8 +61,11 @@ CAPTURE_JS = r"""(async () => {
   const mmt = /makemytrip/.test(location.host);
   // MakeMyTrip with a seat map open: keep just that bus's seat map and stops (the full list is long).
   let seatBox = mmt && !pay && document.querySelector('[data-testid^="seat_"]');
-  while (seatBox && !/PICK ?UP POINT/i.test(seatBox.innerText || "")) seatBox = seatBox.parentElement;
-  if (seatBox) text = squash(seatBox.innerText);
+  // (stop at the bus's own card: higher up, the page's "Pick up point" filter would match instead)
+  while (seatBox && seatBox !== document.body && !/\d{1,2}:\d{2}, \d{1,2} [A-Z]{3}/.test(seatBox.innerText || ""))
+    seatBox = seatBox.parentElement;
+  if (seatBox === document.body) seatBox = null;
+  if (seatBox && /PICK ?UP POINT/i.test(seatBox.innerText)) text = squash(seatBox.innerText);
   else if (mmt && /buses found/.test(text)) {
     const at = Math.max(text.search(/\d+ buses found/), 0), end = text.indexOf("End of buses", at);
     text = text.slice(at, end > at ? end : undefined);

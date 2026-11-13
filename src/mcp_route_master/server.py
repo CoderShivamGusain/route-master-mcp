@@ -1483,9 +1483,22 @@ async def _read_seats(c: Capture, site: str, operator, departure, seats_wanted, 
         )
         if site_numbers:
             out.append(f"Selected on the site: seat **{site_numbers}**.")
-            points = await _off_loop(parse_mmt_points, c)
-            if points:
-                out += ["", *_points_text(points), "", "Which boarding and drop point?"]
+        # MakeMyTrip shows the stops under the seat map from the start: list them right away.
+        points = await _off_loop(parse_mmt_points, c)
+        if points:
+            out += [
+                "",
+                *_points_text(points),
+                "",
+                "Which boarding and drop point?"
+                if site_numbers
+                else "After the seat, choose a boarding and drop point.",
+            ]
+        elif site_numbers:
+            out.append(
+                "_The boarding and drop points weren't on the page yet. Call browser_read again; if they're still "
+                "missing, call browser_look to see the page._"
+            )
     if problems:
         out.append(f"_{len(problems)} seat(s) couldn't be read._")
     return "\n".join(out)

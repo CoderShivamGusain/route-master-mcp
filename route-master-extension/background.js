@@ -9,6 +9,7 @@
 //   fill {fields}              type the user's own details (never secret fields)
 //   choose {text}              pick an option such as "Male" or "Don't add ..."
 //   show                       bring the route-master window to the front (to pay)
+//   shot                       a picture of the booking tab (never the payment page)
 import { SERVER_URL, VERSION, ALLOWED_HOSTS } from "./config.js";
 
 const WS_URL = SERVER_URL.replace(/^http/, "ws") + "/ext/ws";
@@ -295,6 +296,44 @@ async function awaitSeats(tabId) {
   const seats = await surface(tabId, () => waitFor(() => seatsDrawn(tabId), 20000));
   return { seats, shown: true };
 }
+// MakeMyTrip lists the pick-up and drop points under the open seat map. In a background window that
+// list may not be drawn yet (live, 13 Nov 2026: seat selected, "points haven't loaded").
+const pointsPending = tabId => exec(tabId, () => {
+  if (!/makemytrip/.test(location.host)) return false;
+  let el = document.querySelector('[data-testid^="seat_"]');
+  if (!el) return false;
+  while (el && el !== document.body && !/\d{1,2}:\d{2}, \d{1,2} [A-Z]{3}/.test(el.innerText || "")) el = el.parentElement;
+  return !el || el === document.body;
+});
+
+// Before reading the booking tab: let a seat map and its stops finish drawing, showing the window
+// briefly if they won't draw in the background.
+async function settlePage(tabId) {
+  if (await seatsPending(tabId).catch(() => false)) await awaitSeats(tabId);
+  if (!(await pointsPending(tabId).catch(() => false))) return;
+  await exec(tabId, () => { const all = document.querySelectorAll('[data-testid^="seat_"]'); if (all.length) all[all.length - 1].scrollIntoView({ block: "start" }); });
+  const there = async () => !(await pointsPending(tabId));
+  if (!(await waitFor(there, 3000))) await surface(tabId, () => waitFor(there, 10000));
+}
+
+// A picture of the booking tab, for when the page's text doesn't answer the question. Never the
+// payment page. The window is shown while the picture is taken (Chrome can't picture a hidden one).
+async function screenshot(tabId) {
+  return surface(tabId, async () => {
+    await sleep(800);
+    const target = { tabId };
+    await withTimeout(chrome.debugger.attach(target, "1.3"), 5000, "Couldn't take a picture: close DevTools on the route-master tab and try again.");
+    try {
+      const shot = await withTimeout(
+        chrome.debugger.sendCommand(target, "Page.captureScreenshot", { format: "jpeg", quality: 45 }), 10000,
+        "Chrome didn't return a picture of the page.");
+      return shot.data;
+    } finally {
+      await withTimeout(chrome.debugger.detach(target), 3000, "detach timed out").catch(() => {});
+    }
+  });
+}
+
 const opened = async (tabId, how) => ({ clicked: how, seat_map: true, ...(await awaitSeats(tabId)) });
 
 async function openBus(tabId, g) {
@@ -343,9 +382,13 @@ async function run(op, args, g = null) {
   }
   const tab = await getTab(false);
   if (op === "capture") {
-    // A seat page still without seats (the window was in the background): let them draw first.
-    if (await seatsPending(tab.id).catch(() => false)) await awaitSeats(tab.id);
+    await settlePage(tab.id); // seats or stops not drawn yet (background window): let them draw first
     return { capture: await capture(tab.id, g) };
+  }
+  if (op === "shot") {
+    if (!allowed(tab.url)) throw new Error("The route-master tab isn't on redBus or MakeMyTrip.");
+    if (isPayment(tab.url)) throw new Error("This is the payment page: no pictures of it; the user takes over here.");
+    return { image: await screenshot(tab.id), url: tab.url };
   }
   if (op === "show") {
     await chrome.windows.update(tab.windowId, { focused: true, state: "normal" });
@@ -365,6 +408,7 @@ async function run(op, args, g = null) {
       click = name === "open_bus" ? await openBus(tab.id, g) : { clicked: await realClick(tab.id, { g }) };
       await settle(tab.id);
     } else await sleep(800);
+    await settlePage(tab.id).catch(() => {});
     return { result, click, capture: await capture(tab.id, g) };
   }
   if (op === "fill") {

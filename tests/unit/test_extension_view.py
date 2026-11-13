@@ -93,3 +93,13 @@ async def test_mixed_deck_says_which_side_is_single_and_what_is_a_berth():
         "L3",
     ]
     assert lower["grid"][1][0] is None and lower["grid"][1][1] == "AISLE"
+
+
+@pytest.mark.anyio
+async def test_mmt_stops_come_with_the_first_seat_map():
+    """Live ChatGPT test, 13 Nov 2026: the stops were only listed after a seat was selected, and the
+    AI told the user they hadn't loaded."""
+    text = await read_page(capture=FLIXBUS)  # no seat selected yet
+    assert "**Board at:**" in text and "Transport Nagar" in text
+    assert "**Get off at:**" in text and "ISBT Kashmiri Gate" in text
+    assert "After the seat, choose a boarding and drop point." in text

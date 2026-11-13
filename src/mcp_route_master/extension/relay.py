@@ -31,7 +31,7 @@ from mcp_route_master.extension.tokens import ExtensionTokens, Identity
 log = logging.getLogger(__name__)
 
 HELLO_TIMEOUT = 10  # seconds the extension has to identify itself
-MAX_MESSAGE = 512 * 1024  # a page capture is ~20 KB; refuse anything absurd
+MAX_MESSAGE = 2 * 1024 * 1024  # a page capture is ~20 KB, a screenshot ~300 KB; refuse anything absurd
 
 
 class ExtensionOffline(Exception):

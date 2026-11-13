@@ -665,3 +665,19 @@ async def test_open_bus_looks_on_the_other_site_when_not_told_which(server):
         )
         assert not err and "## Seats: Tiwari and Brothers" in text
         assert [o for o, _ in sites.ops] == ["capture", "action", "open", "action"]
+
+
+async def test_browser_look_returns_a_screenshot(server):
+    """User, 13 Nov 2026: "take a screenshot and send it to the AI so it can see where things are"."""
+    async with extension(server, RAM) as fake, app_client(server) as c:
+        fake.answer = lambda op, args: {
+            "image": "aGVsbG8=",
+            "url": "https://www.makemytrip.com/bus/search/A/B",
+        }
+        r = await c.call_tool("browser_look", {})
+        assert r.content[0].type == "text" and "Screenshot of the booking window" in r.content[0].text
+        assert r.content[1].type == "image" and r.content[1].data == "aGVsbG8="
+        assert ("shot", {}) in fake.calls
+        fake.answer = lambda op, args: {}
+        err, text = await call(c, "browser_look")
+        assert err and "Couldn't get a picture" in text

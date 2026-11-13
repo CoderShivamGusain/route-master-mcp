@@ -35,7 +35,8 @@ MMT_LIST = (
 MMT_SEAT_MAP = MMT_LIST.replace(
     "<p>End of buses</p>",
     '<section><p>LOWER BERTH (2)</p><div><span data-testid="seat_L1" class="listingSprite"></span>'
-    "<span>₹899</span></div><p>PICK UP POINT</p><p>Kashmere Gate</p></section><p>End of buses</p>",
+    "<span>₹899</span></div><p>PICK UP POINT</p><p>20:30, 19 NOV</p><p>Kashmere Gate</p></section>"
+    "<p>End of buses</p>",
 )
 
 pytestmark = pytest.mark.skipif(not _node_playwright(), reason="needs node + playwright")
@@ -95,6 +96,12 @@ def results(tmp_path_factory):
         },
         "mmt_list": {"html": MMT_LIST, "url": MMT, "js": _js("__rm.capture({})")},
         "mmt_seat_map": {"html": MMT_SEAT_MAP, "url": MMT, "js": _js("__rm.capture({})")},
+        "mmt_seat_map_no_stops_yet": {
+            "html": "<aside><p>Pick up point</p></aside>"
+            + MMT_SEAT_MAP.replace("<p>PICK UP POINT</p><p>20:30, 19 NOV</p><p>Kashmere Gate</p>", ""),
+            "url": MMT,
+            "js": _js("__rm.capture({})"),
+        },
         "fill_on_payment": {
             "html": FORM,
             "url": "https://www.redbus.in/paymentDetails",
@@ -145,3 +152,11 @@ def test_mmt_capture_with_a_seat_map_open_keeps_only_that_bus(results):
     r = json.loads(r) if isinstance(r, str) else r
     assert "LOWER BERTH (2)" in r["text"] and "PICK UP POINT" in r["text"] and "Zing" not in r["text"]
     assert [s["t"] for s in r["mmt_seats"]] == ["seat_L1"]
+
+
+def test_mmt_seat_map_without_stops_is_not_mistaken_for_the_filter_panel(results):
+    """Live, 13 Nov 2026: with the stops not drawn yet, the page's "Pick up point" filter matched and
+    the whole page was taken for the seat box. Now it falls back to the list (and the seats)."""
+    r = results["mmt_seat_map_no_stops_yet"]["result"]
+    r = json.loads(r) if isinstance(r, str) else r
+    assert r["text"].startswith("12 buses found") and [s["t"] for s in r["mmt_seats"]] == ["seat_L1"]

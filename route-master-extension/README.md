@@ -130,6 +130,8 @@ Hosting your own server: change `SERVER_URL` in `config.js` and the server host 
 
 ## Limits
 
+- **`browser_look`** gives the AI a screenshot of the booking page (never the payment page), for when
+  the page's text doesn't answer the question; the window is in front while the picture is taken.
 - **The route-master window may pop to the front for a few seconds** when a seat map is opened:
   Chrome doesn't draw pages in covered or minimized windows, and redBus only draws its seats while
   the page is displayed. It goes back behind (or minimized) as soon as the seats are read.

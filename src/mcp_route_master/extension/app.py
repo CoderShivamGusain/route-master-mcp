@@ -34,7 +34,7 @@ from fastmcp.apps.config import AppConfig
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_access_token
 from fastmcp.tools.base import ToolResult
-from mcp.types import TextContent
+from mcp.types import ImageContent, TextContent
 from pydantic import BaseModel, Field
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -106,6 +106,7 @@ If browser_status says the extension isn't connected, use the guided tools inste
 links, rank_pasted_results, booking_steps with for_traveller=true).
 
 The seat map and bus table also appear as a picture in apps that can show one; still give the text.
+If an answer lacks something the page should show, call browser_look (a screenshot) to see it.
 If a step fails or times out, call browser_read before trying again; never switch to web search or send
 the user to the site instead.
 
@@ -653,6 +654,30 @@ def create_app_server(hub: Hub, auth: Any) -> FastMCP:
         continue, book or pay buttons."""
         out = await _send(hub, "choose", {"text": option, "occurrence": occurrence})
         return await _explain(out["capture"], requested_seats=requested_seats)
+
+    @tool(
+        annotations={**_BROWSER, "readOnlyHint": True, "title": "Look at the page in my browser"},
+        output_schema=None,
+    )
+    async def browser_look() -> Any:
+        """A screenshot of the booking page open in the user's Chrome. Use it when a browser_* answer
+        lacks something the page should show (stops, a button, an error), to see where it is, before
+        ever telling the user to open the site themselves. Not available on the payment page."""
+        out = await _send(hub, "shot", timeout=45)
+        image = out.get("image") if isinstance(out, dict) else None
+        if not isinstance(image, str) or not image or len(image) > 1_500_000:
+            raise ToolError("Couldn't get a picture of the page. Call browser_read instead.")
+        return ToolResult(
+            content=[
+                TextContent(
+                    type="text",
+                    text=f"Screenshot of the booking window ({out.get('url', '')}). Say what it shows; to press "
+                    "an option on it use browser_choose or browser_action, never ask the user for OTPs or payment "
+                    "details.",
+                ),
+                ImageContent(type="image", data=image, mimeType="image/jpeg"),
+            ]
+        )
 
     @tool(annotations={**_BROWSER, "title": "Show the booking window"}, output_schema=None)
     async def browser_show() -> str:
